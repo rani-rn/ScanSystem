@@ -1,0 +1,117 @@
+﻿<div class="table-container">
+    <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="Search...">
+    <table class="table-responsive" id="dataTable">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Shipment ID &#9662;</th>
+                <th onclick="sortTable(1)">DO ID &#9662;</th>
+                <th onclick="sortTable(3)">Shipment Date &#9662;</th>
+                <th onclick="sortTable(4)">Destination &#9662;</th>
+                <th onclick="sortTable(5)">Model &#9662;</th>
+                <th onclick="sortTable(6)">Quantity &#9662;</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+    <p id="noDataMessage" style="display: none; text-align: center; font-weight: bold;">No data available</p>
+</div>
+
+<style>
+    .table-container {
+        width: 100%;
+        max-width: 1000px;
+        margin: auto;
+        text-align: center;
+    }
+
+    #searchInput {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #fff;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #fff;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    th, td {
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+    }
+
+    th {
+        background-color: transparent;
+        color: black;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let shipments = [];
+        let tableBody = document.getElementById("tableBody");
+        let noDataMessage = document.getElementById("noDataMessage");
+
+        if (shipments.length === 0) {
+            noDataMessage.style.display = "block";
+        } else {
+            noDataMessage.style.display = "none";
+            shipments.forEach(shipment => {
+                let row = `<tr>
+                    <td>${shipment.shipmentId}</td>
+                    <td>${shipment.doid}</td>
+                    <td>${shipment.shipmentDate}</td>
+                    <td>${shipment.destination}</td>
+                    <td>${shipment.modelName ?? '-'}</td>
+                    <td>${shipment.qty ?? '-'}</td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+    });
+
+    function searchTable() {
+        let input = document.getElementById("searchInput");
+        let filter = input.value.toLowerCase();
+        let table = document.getElementById("dataTable");
+        let rows = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < rows.length; i++) {
+            let cells = rows[i].getElementsByTagName("td");
+            let found = false;
+            for (let j = 0; j < cells.length; j++) {
+                if (cells[j].innerText.toLowerCase().includes(filter)) {
+                    found = true;
+                    break;
+                }
+            }
+            rows[i].style.display = found ? "" : "none";
+        }
+    }
+
+    function sortTable(n) {
+        let table = document.getElementById("dataTable");
+        let rows = Array.from(table.rows).slice(1);
+        let sorted = rows.sort((a, b) => {
+            let x = a.cells[n].innerText.toLowerCase();
+            let y = b.cells[n].innerText.toLowerCase();
+            return x.localeCompare(y, undefined, { numeric: true });
+        });
+        sorted.forEach(row => table.appendChild(row));
+    }
+</script>

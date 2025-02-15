@@ -1,0 +1,237 @@
+﻿<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    .container-form {
+        max-width: 800px;
+        margin: auto;
+        padding: 20px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 50px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 10px;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: space-between;
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .stat-box {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background: #f9f9f9;
+    }
+
+    .stats-box {
+        background: yellow;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 20px;
+    }
+</style>
+
+<div class="container-form">
+    <div class="form-group">
+        <label for="deliveryOrder">Delivery Order</label>
+        <select class="form-control" id="deliveryOrder">
+            <option value="">Select</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            <input type="text" class="form-control" id="model" placeholder="Model" readonly>
+        </div>
+        <div class="form-group col-md-6">
+            <input type="text" class="form-control" id="destination" placeholder="Destination" readonly>
+        </div>
+    </div>
+    <div class="form-group">
+        <input type="text" class="form-control" id="containerNo" placeholder="Container No" readonly>
+    </div>
+    <div class="form-group">
+        <input type="text" class="form-control" id="serialNumber" placeholder="Serial Number" autofocus>
+    </div>
+    <div class="stats">
+        <div class="stat-box">
+            <h4>Package Size</h4>
+            <p id="planQty">3</p>
+        </div>
+        <div class="stat-box stats-box">
+            <h4>Actual</h4>
+            <p id="actualQty">0</p>
+        </div>
+        <div class="stat-box">
+            <h4>Countdown</h4>
+            <p id="countdown">0</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Select</th>
+                    <th>Destination</th>
+                    <th>Shipment Date</th>
+                    <th>Model</th>
+                    <th>DO</th>
+                    <th>Container No</th>
+                    <th>Serial Number</th>
+                </tr>
+            </thead>
+            <tbody id="dataTable"></tbody>
+        </table>
+    </div>
+    <div class="buttons">
+        <button id="confirmBtn" class="btn btn-primary">Confirm</button>
+        <button id="resetBtn" class="btn btn-danger">Reset List</button>
+    </div>
+</div>
+<script>
+    $(document).ready(function () {
+        function updateConfirmButton() {
+            let planQty = parseInt($("#planQty").text());
+            let actualQty = parseInt($("#actualQty").text());
+            $("#confirmBtn").prop("disabled", actualQty !== planQty);
+        }
+
+        let scanTimeout;
+
+            $("#serialNumber").on("change blur", function () {
+        processScan();
+    });
+
+
+        function processScan() {
+            let serialNumber = $("#serialNumber").val().trim();
+            if (serialNumber === "") return;
+
+            let exists = $("#dataTable tr td:nth-child(7)").filter(function () {
+                return $(this).text() === serialNumber;
+            }).length > 0;
+
+            if (exists) {
+                Swal.fire("Error", "Serial Number already exists!", "error");
+                $("#serialNumber").val("").focus();
+                return;
+            }
+
+            let planQty = parseInt($("#planQty").text());
+            let actualQty = parseInt($("#actualQty").text());
+
+            if (actualQty >= planQty) {
+                Swal.fire("Error", "Plan quantity reached!", "error");
+                $("#serialNumber").val("").focus();
+                return;
+            }
+
+            let destination = $("#destination").val() || "-";
+            let shipmentDate = new Date().toISOString().split("T")[0];
+            let model = $("#model").val() || "-";
+            let deliveryOrder = $("#deliveryOrder").val() || "-";
+            let containerNo = $("#containerNo").val() || "-";
+
+            $("#dataTable").append(`
+                <tr>
+                    <td><input type="checkbox" class="row-checkbox"></td>
+                    <td>${destination}</td>
+                    <td>${shipmentDate}</td>
+                    <td>${model}</td>
+                    <td>${deliveryOrder}</td>
+                    <td>${containerNo}</td>
+                    <td>${serialNumber}</td>
+                </tr>
+            `);
+
+            $("#actualQty").text(actualQty + 1);
+            $("#countdown").text(planQty - (actualQty + 1));
+
+            updateConfirmButton();
+            $("#serialNumber").val("").focus();
+        }
+
+        $("#confirmBtn").click(function () {
+            Swal.fire({
+                title: "Confirm All Scans?",
+                text: "Are you sure all scans are complete?",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Yes, Confirm",
+                cancelButtonText: "No, Cancel"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire("Success", "All scans confirmed!", "success");
+                    $("#confirmBtn").prop("disabled", true);
+                }
+            });
+        });
+
+        $("#resetBtn").click(function () {
+            let checkedItems = $(".row-checkbox:checked").closest("tr");
+
+            if (checkedItems.length > 0) {
+                Swal.fire({
+                    title: "Delete Selected Items?",
+                    text: "Are you sure you want to delete the selected items?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes, Delete",
+                    cancelButtonText: "No, Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        checkedItems.remove();
+
+                        let actualQty = $("#dataTable tr").length;
+                        $("#actualQty").text(actualQty);
+                        $("#countdown").text($("#planQty").text() - actualQty);
+
+                        updateConfirmButton();
+                        Swal.fire("Deleted!", "Selected items have been removed.", "success");
+                    }
+                });
+            } else {
+                Swal.fire({
+                    title: "Reset List?",
+                    text: "Are you sure you want to reset the scan list?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes, Reset",
+                    cancelButtonText: "No, Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $("#dataTable").empty();
+                        $("#actualQty").text(0);
+                        $("#countdown").text($("#planQty").text());
+
+                        updateConfirmButton();
+                        Swal.fire("Success", "Scan list reset!", "success");
+                    }
+                });
+            }
+        });
+    });
+
+</script>
