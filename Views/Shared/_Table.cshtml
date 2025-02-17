@@ -62,28 +62,32 @@
 </style>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        let shipments = [];
-        let tableBody = document.getElementById("tableBody");
-        let noDataMessage = document.getElementById("noDataMessage");
+        document.addEventListener("DOMContentLoaded", function() {
+        fetch("http://localhost:5177/api/shipments")
+            .then(response => response.json())
+            .then(data => {
+                let tableBody = document.getElementById("tableBody");
+                let noDataMessage = document.getElementById("noDataMessage");
 
-        if (shipments.length === 0) {
-            noDataMessage.style.display = "block";
-        } else {
-            noDataMessage.style.display = "none";
-            shipments.forEach(shipment => {
-                let row = `<tr>
-                    <td>${shipment.shipmentId}</td>
-                    <td>${shipment.doid}</td>
-                    <td>${shipment.shipmentDate}</td>
-                    <td>${shipment.destination}</td>
-                    <td>${shipment.modelName ?? '-'}</td>
-                    <td>${shipment.qty ?? '-'}</td>
-                </tr>`;
-                tableBody.innerHTML += row;
-            });
-        }
+                if (data.length === 0) {
+                    noDataMessage.style.display = "block";
+                } else {
+                    noDataMessage.style.display = "none";
+                    tableBody.innerHTML = data.map(shipment => `
+                        <tr>
+                            <td>${shipment.shipmentId}</td>
+                            <td>${shipment.doid}</td>
+                            <td>${new Date(shipment.shipmentDate).toLocaleString()}</td>
+                            <td>${shipment.destination}</td>
+                            <td>${shipment.modelName}</td>
+                            <td>${shipment.qty}</td>
+                        </tr>
+                    `).join("");
+                }
+            })
+            .catch(error => console.error("Error fetching data:", error));
     });
+
 
     function searchTable() {
         let input = document.getElementById("searchInput");

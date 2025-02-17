@@ -58,7 +58,7 @@
     <div class="form-group">
         <label for="deliveryOrder">Delivery Order</label>
         <select class="form-control" id="deliveryOrder">
-            <option value="">Select</option>
+            
         </select>
     </div>
     <div class="form-row">
@@ -112,6 +112,36 @@
 </div>
 <script>
     $(document).ready(function () {
+
+        loadDeliveryOrders();
+
+    $("#deliveryOrder").change(function () {
+        let doId = $(this).val();
+        if (doId) {
+            loadDeliveryOrderDetails(doId);
+        } else {
+            clearDeliveryOrderDetails();
+        }
+    });
+
+    function loadDeliveryOrders() {
+        $.ajax({
+            url: "/api/deliveryorder",
+            method: "GET",
+            success: function (data) {
+                let dropdown = $("#deliveryOrder");
+                dropdown.empty().append('<option value="">Select</option>');
+                $.each(data, function (index, item) {
+                    dropdown.append(`<option value="${item.doid}">${item.donumber}</option>`);
+                });
+            },
+            error: function () {
+                Swal.fire("Error", "Failed to load delivery orders", "error");
+            }
+        });
+    }
+
+        
         function updateConfirmButton() {
             let planQty = parseInt($("#planQty").text());
             let actualQty = parseInt($("#actualQty").text());

@@ -12,8 +12,8 @@ using ScanBarcode.Models;
 namespace ScanBarcode.Migrations
 {
     [DbContext(typeof(ScanSystemContext))]
-    [Migration("20250214083120_Init")]
-    partial class Init
+    [Migration("20250217020303_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
