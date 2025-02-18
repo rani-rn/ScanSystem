@@ -58,18 +58,18 @@
     <div class="form-group">
         <label for="deliveryOrder">Delivery Order</label>
         <select class="form-control" id="deliveryOrder">
-            
+            <option value="">Select a Delivery Order</option>
         </select>
     </div>
     <div class="form-row">
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-6">Model
             <input type="text" class="form-control" id="model" placeholder="Model" readonly>
         </div>
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-6"> Destination
             <input type="text" class="form-control" id="destination" placeholder="Destination" readonly>
         </div>
     </div>
-    <div class="form-group">
+    <div class="form-group"> Container No
         <input type="text" class="form-control" id="containerNo" placeholder="Container No" readonly>
     </div>
     <div class="form-group">
@@ -94,11 +94,8 @@
             <thead class="table-dark">
                 <tr>
                     <th>Select</th>
-                    <th>Destination</th>
                     <th>Shipment Date</th>
-                    <th>Model</th>
-                    <th>DO</th>
-                    <th>Container No</th>
+                    <th>RFID</th>
                     <th>Serial Number</th>
                 </tr>
             </thead>
@@ -106,60 +103,84 @@
         </table>
     </div>
     <div class="buttons">
-        <button id="confirmBtn" class="btn btn-primary">Confirm</button>
+        <button id="confirmBtn" class="btn btn-primary" disabled>Confirm</button>
         <button id="resetBtn" class="btn btn-danger">Reset List</button>
     </div>
 </div>
+
 <script>
     $(document).ready(function () {
 
         loadDeliveryOrders();
 
-    $("#deliveryOrder").change(function () {
-        let doId = $(this).val();
-        if (doId) {
-            loadDeliveryOrderDetails(doId);
-        } else {
-            clearDeliveryOrderDetails();
+        function loadDeliveryOrders() {
+            $.ajax({
+                url: "/api/deliveryorder",
+                method: "GET",
+                success: function (data) {
+                    let dropdown = $("#deliveryOrder");
+                    dropdown.empty().append('<option value="">Select</option>'); 
+                    $.each(data, function (index, item) {
+                        dropdown.append(`<option value="${item.doid}" data-donumber="${item.donumber}">${item.donumber}</option>`);
+                    });
+                },
+                error: function () {
+                    Swal.fire("Error", "Failed to load delivery orders", "error");
+                }
+            });
         }
-    });
 
-    function loadDeliveryOrders() {
-        $.ajax({
-            url: "/api/deliveryorder",
-            method: "GET",
-            success: function (data) {
-                let dropdown = $("#deliveryOrder");
-                dropdown.empty().append('<option value="">Select</option>');
-                $.each(data, function (index, item) {
-                    dropdown.append(`<option value="${item.doid}">${item.donumber}</option>`);
-                });
-            },
-            error: function () {
-                Swal.fire("Error", "Failed to load delivery orders", "error");
+        $("#deliveryOrder").change(function () {
+            let doId = $(this).val();
+            if (doId) {
+                loadDeliveryOrderDetails(doId);
+            } else {
+                clearDeliveryOrderDetails();
             }
         });
-    }
 
-        
+        function loadDeliveryOrderDetails(doId) {
+            $.ajax({
+                url: `/api/deliveryorder/${doId}`,
+                method: "GET",
+                success: function (data) {
+                    $("#model").val(data.modelName);
+                    $("#destination").val(data.destination);
+                    $("#containerNo").val(data.containerNo);
+                    $("#planQty").text(data.qty);
+                    $("#actualQty").text(0);
+                    $("#countdown").text(data.qty);
+                },
+                error: function () {
+                    Swal.fire("Error", "Failed to load Delivery Order details", "error");
+                }
+            });
+        }
+
+        function clearDeliveryOrderDetails() {
+            $("#model").val("");
+            $("#destination").val("");
+            $("#containerNo").val("");
+            $("#planQty").text("0");
+            $("#actualQty").text("0");
+            $("#countdown").text("0");
+        }
+
         function updateConfirmButton() {
             let planQty = parseInt($("#planQty").text());
             let actualQty = parseInt($("#actualQty").text());
             $("#confirmBtn").prop("disabled", actualQty !== planQty);
         }
 
-        let scanTimeout;
-
-            $("#serialNumber").on("change blur", function () {
-        processScan();
-    });
-
+        $("#serialNumber").on("change blur", function () {
+            processScan();
+        });
 
         function processScan() {
             let serialNumber = $("#serialNumber").val().trim();
             if (serialNumber === "") return;
 
-            let exists = $("#dataTable tr td:nth-child(7)").filter(function () {
+            let exists = $("#dataTable tr td:nth-child(4)").filter(function () {
                 return $(this).text() === serialNumber;
             }).length > 0;
 
@@ -178,21 +199,16 @@
                 return;
             }
 
-            let destination = $("#destination").val() || "-";
             let shipmentDate = new Date().toISOString().split("T")[0];
-            let model = $("#model").val() || "-";
-            let deliveryOrder = $("#deliveryOrder").val() || "-";
-            let containerNo = $("#containerNo").val() || "-";
+            let rfid = "RFID_" + Math.floor(Math.random() * 10000);
+            let serial = serialNumber;
 
             $("#dataTable").append(`
                 <tr>
                     <td><input type="checkbox" class="row-checkbox"></td>
-                    <td>${destination}</td>
                     <td>${shipmentDate}</td>
-                    <td>${model}</td>
-                    <td>${deliveryOrder}</td>
-                    <td>${containerNo}</td>
-                    <td>${serialNumber}</td>
+                    <td>${rfid}</td>
+                    <td>${serial}</td>
                 </tr>
             `);
 
@@ -257,11 +273,11 @@
                         $("#countdown").text($("#planQty").text());
 
                         updateConfirmButton();
-                        Swal.fire("Success", "Scan list reset!", "success");
+                        Swal.fire("Reset!", "Scan list has been reset.", "success");
                     }
                 });
             }
         });
-    });
 
+    });
 </script>
