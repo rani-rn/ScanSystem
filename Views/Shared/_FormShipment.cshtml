@@ -185,12 +185,17 @@
         }
 
         function isRFID(input) {
-            return input.length <= 10 && !isNaN(input);
+            return input.startsWith("TAG");
         }
+
+        function isSerialNumber(input) {
+            return input.length >= 10 && input.length <= 25 && !input.startsWith("TAG");
+        }
+
 
         function validateRFID(rfid) {
             if (scannedRFIDs.has(rfid)) {
-                Swal.fire("Error", "RFID has been scaned!", "warning");
+                Swal.fire("Error", "RFID has been scanned!", "warning");
                 $("#serialNumber").val("").focus();
                 return;
             }
@@ -205,23 +210,35 @@
                         return;
                     }
 
+                    let rfidTag = response[0].RFID; // Ambil RFID pertama dari response
                     let serialNumbers = response.map(item => item.SerialNumber).filter(sn => sn);
-                    let rfidTag = response.find(item => item.RFID)?.RFID;
-                    let countSerialNumbers = serialNumbers.length || 1; 
+                    let countNewSerials = 0;
 
-                    scannedRFIDs.add(rfid);
-                    serialNumbers.forEach(sn => scannedSerialNumbers.add(sn));
+                    response.forEach(item => {
+                        let serial = item.SerialNumber ? item.SerialNumber : "-";
 
-                    $("#dataTable").append(`
-                <tr>
-                    <td><input type="checkbox" class="row-checkbox"></td>
-                    <td>${rfidTag}</td>
-                    <td>${serialNumbers.join(", ")}</td>
-                </tr>
-            `);
-            updateQuantities();
+                        if (serial !== "-" && scannedSerialNumbers.has(serial)) {
+                            Swal.fire("Error", `Serial Number ${serial} has already been scanned!`, "warning");
+                            return;
+                        }
 
-                    updateQuantities(countSerialNumbers);
+                        if (serial !== "-") {
+                            scannedSerialNumbers.add(serial);
+                            countNewSerials++;
+                        }
+
+                        scannedRFIDs.add(rfidTag);
+
+                        $("#dataTable").append(`
+                    <tr>
+                        <td><input type="checkbox" class="row-checkbox"></td>
+                        <td>${rfidTag}</td>
+                        <td>${serial}</td>
+                    </tr>
+                `);
+                    });
+
+                    updateQuantities(countNewSerials);
                     $("#serialNumber").val("").focus();
                 },
                 error: function () {
@@ -229,6 +246,7 @@
                 }
             });
         }
+
 
         function validateSerialNumber(serialNumber) {
             if (scannedSerialNumbers.has(serialNumber)) {
@@ -248,8 +266,13 @@
                     }
 
                     data.forEach(item => {
-                        let rfid = item.RFID ? item.RFID : "-"; 
+                        let rfid = item.RFID ? item.RFID : "-";
                         let serial = item.SerialNumber ? item.SerialNumber : "-";
+
+                        if (serial !== "-" && scannedSerialNumbers.has(serial)) {
+                            Swal.fire("Error", `Serial Number ${serial} has already been scanned!`, "warning");
+                            return;
+                        }
 
                         if (serial !== "-") {
                             scannedSerialNumbers.add(serial);
@@ -271,25 +294,26 @@
                     $("#serialNumber").val("").focus();
                 },
                 error: function (xhr, status, error) {
-                    console.error("Error fetching RFID:", xhr.responseText);
+                    console.error("Error fetching SerialNumber:", xhr.responseText);
                     Swal.fire("Error", "Gagal memvalidasi serial number", "error");
                 }
             });
         }
 
+
         function updateQuantities() {
             let rowCount = $("#dataTable tr").length;
-    let planQty = parseInt($("#planQty").text());
+            let planQty = parseInt($("#planQty").text());
 
-     if (actualQty > planQty) {
-        Swal.fire("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
-        return;
-    }
+            if (actualQty > planQty) {
+                Swal.fire("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
+                return;
+            }
 
-    $("#actualQty").text(rowCount);
-    $("#countdown").text(planQty - rowCount);
+            $("#actualQty").text(rowCount);
+            $("#countdown").text(planQty - rowCount);
 
-    updateConfirmButton();
+            updateConfirmButton();
         }
 
 
@@ -364,4 +388,4 @@
         });
     });
 
-</script>
+</script> 

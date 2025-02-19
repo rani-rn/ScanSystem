@@ -74,7 +74,7 @@ public async Task<IActionResult> ValidateNumber(string input)
             (x, rfid) => new
             {
                 x.SerialNumber,
-                RFID = rfid ?? "-"
+                RFID = rfid 
             }
         )
         .Where(item => item.SerialNumber == input || item.RFID == input)
