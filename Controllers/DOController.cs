@@ -56,29 +56,36 @@ public class DOController : ControllerBase
     }
 
     [HttpGet("validate/{input}")]
-    public async Task<IActionResult> ValidateNumber(string input)
-    {
-         var itemQuery = _context.MasterItems
-        .Where(mi => mi.SerialNumber == input ||
-                    _context.Rfidtags
-                        .Where(r => r.TagNumber == input)
-                        .Select(r => r.Id)
-                        .Contains(mi.RfidtagId));
-         var items = await itemQuery
-        .Select(mi => new
-        {
-            mi.SerialNumber,
-            RfidTag = _context.Rfidtags
-                .Where(r => r.Id == mi.RfidtagId)
-                .Select(r => r.TagNumber)
-                .FirstOrDefault()
-        })
+public async Task<IActionResult> ValidateNumber(string input)
+{
+    var items = await _context.MasterItems
+        .GroupJoin(
+            _context.Rfidtags,
+            mi => mi.RfidtagId,
+            r => r.Id,
+            (mi, rfidGroup) => new
+            {
+                mi.SerialNumber,
+                RFIDs = rfidGroup.Select(r => r.TagNumber).ToList()
+            }
+        )
+        .SelectMany(
+            x => x.RFIDs.DefaultIfEmpty(), 
+            (x, rfid) => new
+            {
+                x.SerialNumber,
+                RFID = rfid ?? "-"
+            }
+        )
+        .Where(item => item.SerialNumber == input || item.RFID == input)
         .ToListAsync();
-         if (items == null || !items.Any())
+
+    if (!items.Any())
     {
         return NotFound(new { error = "Serial Number atau RFID tidak ditemukan!" });
     }
 
     return Ok(items);
-    }
+}
+
 }
