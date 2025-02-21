@@ -56,9 +56,9 @@ public class DOController : ControllerBase
 
         string statusDO;
         if (deliveryOrder.TotalItems >= deliveryOrder.Qty){
-            statusDO = "Completed";
+            statusDO = "completed";
         } else {
-            statusDO = "Not Completed";
+            statusDO = "not completed";
         }
         var result = new
     {

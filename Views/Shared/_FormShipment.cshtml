@@ -72,11 +72,17 @@
         </div>
 
     </div>
-    <div class="form-group">
-        <label for="contNo">Container</label>
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            <label for="contNo">Container</label>
         <input type="text" class="form-control" id="contNo" placeholder="Container" readonly>
+        </div>
+        <div class="form-group col-md-6">
+            <label for="status">Status</label>
+            <input type="text" class="form-control" id="status" placeholder="Status" readonly>
+        </div>
     </div>
-    <div class="form-group">
+      <div class="form-group">
         <input type="text" class="form-control" id="serialNumber" placeholder="Serial Number" autofocus>
     </div>
     <div class="stats">
@@ -152,6 +158,7 @@
 
         function handleDeliveryOrderChange() {
             const actual = parseInt(elements.actualQty.text());
+            const doId = elements.deliveryOrderSelect.val();
 
             if (actual > 0) {
                 Swal.fire({
@@ -178,10 +185,30 @@
                 if (doId) {
                     loadDeliveryOrderDetails(doId);
                 }
+            }    
+            if(doId){
+                checkDOStatus(doId);
             }
-
             elements.deliveryOrderSelect.data("previous", elements.deliveryOrderSelect.val());
         }
+
+        function checkDOStatus(doId) {
+    fetch(`/api/deliveryorder/${doId}`)
+        .then(response => response.json())
+        .then(data => {
+            $("#status").val(data.status);
+            const status = data.status.toLowerCase();
+            if (data.status === "completed") {
+                
+                elements.serialNumberInput.prop("disabled", true);
+                showAlert("Warning", "DO ini sudah memenuhi permintaan dan tidak bisa di-scan lagi!", "warning");
+            } else {
+                elements.serialNumberInput.prop("disabled", false);
+                loadDeliveryOrderDetails(doId);
+            }
+        })
+        .catch(() => showAlert("Error", "Gagal memeriksa status Delivery Order", "error"));
+}
 
         function loadDeliveryOrderDetails(doId) {
             fetch(`/api/deliveryorder/${doId}`)
@@ -190,6 +217,7 @@
                     $("#model").val(data.modelName);
                     $("#destination").val(data.destination);
                     $("#contNo").val(data.contNo);
+                    $("#status").val(data.status);
                     updateStats(data.qty, 0);
                     elements.serialNumberInput.prop("disabled", false);
                 })
