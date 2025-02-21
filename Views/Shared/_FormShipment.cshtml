@@ -62,19 +62,26 @@
         </select>
     </div>
     <div class="form-row">
-        <div class="form-group col-md-6">Model
+        <div class="form-group col-md-6">
+            <label for="model">Model</label>
             <input type="text" class="form-control" id="model" placeholder="Model" readonly>
         </div>
-        <div class="form-group col-md-6"> Destination
+        <div class="form-group col-md-6">
+            <label for="destination">Destination</label>
             <input type="text" class="form-control" id="destination" placeholder="Destination" readonly>
         </div>
+
+    </div>
+    <div class="form-group">
+        <label for="contNo">Container</label>
+        <input type="text" class="form-control" id="contNo" placeholder="Container" readonly>
     </div>
     <div class="form-group">
         <input type="text" class="form-control" id="serialNumber" placeholder="Serial Number" autofocus>
     </div>
     <div class="stats">
         <div class="stat-box">
-            <h4>Package Size</h4>
+            <h4>Demand</h4>
             <p id="planQty">0</p>
         </div>
         <div class="stat-box stats-box">
@@ -91,7 +98,6 @@
             <thead class="table-dark">
                 <tr>
                     <th>Select</th>
-                    <th>RFID</th>
                     <th>Serial Number</th>
                 </tr>
             </thead>
@@ -105,287 +111,217 @@
 </div>
 <script>
     $(document).ready(function () {
-        loadDeliveryOrders();
-        $("#serialNumber").prop("disabled", true);
+        const elements = {
+            deliveryOrderSelect: $("#deliveryOrder"),
+            serialNumberInput: $("#serialNumber"),
+            dataTable: $("#dataTable"),
+            confirmBtn: $("#confirmBtn"),
+            resetBtn: $("#resetBtn"),
+            planQty: $("#planQty"),
+            actualQty: $("#actualQty"),
+            countdown: $("#countdown"),
+        };
 
-        function loadDeliveryOrders() {
-            $.ajax({
-                url: "/api/deliveryorder",
-                method: "GET",
-                success: function (data) {
-                    let dropdown = $("#deliveryOrder");
-                    dropdown.empty().append('<option value="">Select</option>');
-                    $.each(data, function (index, item) {
-                        dropdown.append(`<option value="${item.doid}" data-donumber="${item.donumber}">${item.donumber}</option>`);
-                    });
-                },
-                error: function () {
-                    Swal.fire("Error", "Failed to load delivery orders", "error");
-                }
-            });
+        const scannedSerialNumbers = new Set();
+
+        init();
+
+        function init() {
+            loadDeliveryOrders();
+            elements.serialNumberInput.prop("disabled", true);
+
+            elements.deliveryOrderSelect.change(handleDeliveryOrderChange);
+            elements.serialNumberInput.on("change", processScan);
+            elements.confirmBtn.click(confirmAllScans);
+            elements.resetBtn.click(resetScanList);
         }
 
-        $("#deliveryOrder").change(function () {
-            let doId = $(this).val();
-            if (doId) {
-                loadDeliveryOrderDetails(doId);
-                $("#serialNumber").prop("disabled", false);
-            } else {
-                clearDeliveryOrderDetails();
-                $("#serialNumber").prop("disabled", true);
-            }
-        });
+        function loadDeliveryOrders() {
+            fetch("/api/deliveryorder")
+                .then(response => response.json())
+                .then(data => {
+                    elements.deliveryOrderSelect.empty().append('<option value="">Select</option>');
+                    data.forEach(item => {
+                        elements.deliveryOrderSelect.append(
+                            `<option value="${item.doid}" data-donumber="${item.donumber}">${item.donumber}</option>`
+                        );
+                    });
+                })
+                .catch(() => showAlert("Error", "Failed to load delivery orders", "error"));
+        }
+
+        function handleDeliveryOrderChange() {
+            const doId = $(this).val();
+            doId ? loadDeliveryOrderDetails(doId) : clearDeliveryOrderDetails();
+        }
 
         function loadDeliveryOrderDetails(doId) {
-            $.ajax({
-                url: `/api/deliveryorder/${doId}`,
-                method: "GET",
-                success: function (data) {
+            fetch(`/api/deliveryorder/${doId}`)
+                .then(response => response.json())
+                .then(data => {
                     $("#model").val(data.modelName);
                     $("#destination").val(data.destination);
-                    $("#planQty").text(data.qty);
-                    $("#actualQty").text(0);
-                    $("#countdown").text(data.qty);
-                },
-                error: function () {
-                    Swal.fire("Error", "Failed to load Delivery Order details", "error");
-                }
-            });
+                    $("#contNo").val(data.contNo);
+                    updateStats(data.qty, 0);
+                    elements.serialNumberInput.prop("disabled", false);
+                })
+                .catch(() => showAlert("Error", "Failed to load Delivery Order details", "error"));
         }
 
         function clearDeliveryOrderDetails() {
-            $("#model, #destination").val("");
-            $("#planQty, #actualQty, #countdown").text("0");
-            $("#dataTable").empty();
-            $("#confirmBtn").prop("disabled", true);
+            $("#model, #destination, #contNo").val("");
+            updateStats(0, 0);
+            elements.dataTable.empty();
+            elements.confirmBtn.prop("disabled", true);
+            elements.serialNumberInput.prop("disabled", true);
         }
-
-        function updateConfirmButton() {
-            let planQty = parseInt($("#planQty").text());
-            let actualQty = parseInt($("#actualQty").text());
-            $("#confirmBtn").prop("disabled", actualQty !== planQty);
-        }
-
-        let scannedRFIDs = new Set();
-        let scannedSerialNumbers = new Set();
-
-        $("#serialNumber").on("change", function () {
-            processScan();
-        });
 
         function processScan() {
-            let input = $("#serialNumber").val().trim();
+            const input = elements.serialNumberInput.val().trim();
             if (!input) return;
-
-            if (isRFID(input)) {
-                validateRFID(input);
-            } else {
-                validateSerialNumber(input);
-            }
+            isRFID(input) ? validateRFID(input) : validateSerialNumber(input);
         }
 
         function isRFID(input) {
             return input.startsWith("TAG");
         }
 
-        function isSerialNumber(input) {
-            return input.length >= 10 && input.length <= 25 && !input.startsWith("TAG");
-        }
-
-
-        function validateRFID(rfid) {
-            if (scannedRFIDs.has(rfid)) {
-                Swal.fire("Error", "RFID has been scanned!", "warning");
-                $("#serialNumber").val("").focus();
-                return;
-            }
-
-            $.ajax({
-                url: `/api/deliveryorder/validate/${rfid}`,
-                method: "GET",
-                success: function (response) {
-                    if (!response || response.length === 0) {
-                        Swal.fire("Error", "RFID not found!", "error");
-                        $("#serialNumber").val("").focus();
-                        return;
-                    }
-
-                    let rfidTag = response[0].RFID; // Ambil RFID pertama dari response
-                    let serialNumbers = response.map(item => item.SerialNumber).filter(sn => sn);
-                    let countNewSerials = 0;
-
-                    response.forEach(item => {
-                        let serial = item.SerialNumber ? item.SerialNumber : "-";
-
-                        if (serial !== "-" && scannedSerialNumbers.has(serial)) {
-                            Swal.fire("Error", `Serial Number ${serial} has already been scanned!`, "warning");
-                            return;
-                        }
-
-                        if (serial !== "-") {
-                            scannedSerialNumbers.add(serial);
-                            countNewSerials++;
-                        }
-
-                        scannedRFIDs.add(rfidTag);
-
-                        $("#dataTable").append(`
-                    <tr>
-                        <td><input type="checkbox" class="row-checkbox"></td>
-                        <td>${rfidTag}</td>
-                        <td>${serial}</td>
-                    </tr>
-                `);
-                    });
-
-                    updateQuantities(countNewSerials);
-                    $("#serialNumber").val("").focus();
-                },
-                error: function () {
-                    Swal.fire("Error", "Failed to fetch RFID data", "error");
-                }
-            });
-        }
-
-
         function validateSerialNumber(serialNumber) {
-            if (scannedSerialNumbers.has(serialNumber)) {
-                Swal.fire("Error", "Serial Number has been scanned!", "warning");
-                $("#serialNumber").val("").focus();
+    if (scannedSerialNumbers.has(serialNumber)) {
+        showAlert("Error", "Serial Number has been scanned!", "warning");
+        resetInput();
+        return;
+    }
+
+    fetch(`/api/deliveryorder/validate/${serialNumber}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data || data.length === 0) {
+                showAlert("Error", "Serial Number not found!", "error");
+                resetInput();
                 return;
             }
 
-            $.ajax({
-                url: `/api/deliveryorder/validate/${serialNumber}`,
-                method: "GET",
-                success: function (data) {
-                    if (!data || data.length === 0) {
-                        Swal.fire("Error", "Serial Number not found!", "error");
-                        $("#serialNumber").val("").focus();
+            // Tambahkan pengecekan model di sini
+            const deliveryOrderModel = $("#model").val();
+            if (data[0].model !== deliveryOrderModel) {
+                showAlert("Error", "Model tidak sesuai dengan Delivery Order!", "error");
+                resetInput();
+                return;
+            }
+
+            data.forEach(item => addSerialNumber(item.serialNumber));
+            resetInput();
+        })
+        .catch(() => showAlert("Error", "Failed to validate serial number", "error"));
+}
+
+
+        function addSerialNumber(serial) {
+            if (!serial || scannedSerialNumbers.has(serial)) return;
+
+            scannedSerialNumbers.add(serial);
+            elements.dataTable.append(`
+            <tr>
+                <td><input type="checkbox" class="row-checkbox"></td>
+                <td>${serial}</td>
+            </tr>
+        `);
+            updateQuantities(1);
+            updateStats(parseInt(elements.planQty.text()), scannedSerialNumbers.size);
+        }
+
+        function updateQuantities(newSerials = 0) {
+            const rowCount = elements.dataTable.find("tr").length;
+            const planned = parseInt(elements.planQty.text());
+
+            if (rowCount > planned) {
+                showAlert("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
+                return;
+            }
+
+            updateStats(planned, rowCount);
+        }
+
+        function updateStats(planned, actual) {
+            elements.planQty.text(planned);
+            elements.actualQty.text(actual);
+            elements.countdown.text(planned - actual);
+
+            elements.confirmBtn.prop("disabled", actual === 0);
+        }
+
+        function confirmAllScans() {
+            const serialNumbers = Array.from(scannedSerialNumbers);
+            const doId = elements.deliveryOrderSelect.val();
+
+            if (!doId || serialNumbers.length === 0) {
+                showAlert("Error", "No items to confirm!", "error");
+                return;
+            }
+
+            fetch(`/api/deliveryorder/move-to-mastertable/${doId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(serialNumbers),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showAlert("Error", data.error, "error");
                         return;
                     }
 
-                    data.forEach(item => {
-                        let rfid = item.RFID ? item.RFID : "-";
-                        let serial = item.SerialNumber ? item.SerialNumber : "-";
+                    showAlert("Success", "Items moved to MasterTable!", "success");
+                    scannedSerialNumbers.clear();
+                    elements.dataTable.empty();
 
-                        if (serial !== "-" && scannedSerialNumbers.has(serial)) {
-                            Swal.fire("Error", `Serial Number ${serial} has already been scanned!`, "warning");
-                            return;
-                        }
+                    loadDeliveryOrderDetails(doId);
+                })
+                .catch(() => showAlert("Error", "Failed to confirm scans!", "error"));
+        }
 
-                        if (serial !== "-") {
-                            scannedSerialNumbers.add(serial);
-                        }
-                        if (rfid !== "-") {
-                            scannedRFIDs.add(rfid);
-                        }
 
-                        $("#dataTable").append(`
-                    <tr>
-                        <td><input type="checkbox" class="row-checkbox"></td>
-                        <td>${rfid}</td>
-                        <td>${serial}</td>
-                    </tr>
-                `);
+        function resetScanList() {
+            const selectedCheckboxes = elements.dataTable.find(".row-checkbox:checked");
+
+            if (selectedCheckboxes.length > 0) {
+                showConfirmation("Are you sure?", "Do you want to delete the selected scans?", () => {
+                    selectedCheckboxes.each(function () {
+                        const row = $(this).closest("tr");
+                        scannedSerialNumbers.delete(row.find("td:nth-child(2)").text());
+                        row.remove();
                     });
-
-                    updateQuantities(1);
-                    $("#serialNumber").val("").focus();
-                },
-                error: function (xhr, status, error) {
-                    console.error("Error fetching SerialNumber:", xhr.responseText);
-                    Swal.fire("Error", "Gagal memvalidasi serial number", "error");
-                }
-            });
-        }
-
-
-        function updateQuantities() {
-            let rowCount = $("#dataTable tr").length;
-            let planQty = parseInt($("#planQty").text());
-
-            if (actualQty > planQty) {
-                Swal.fire("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
-                return;
-            }
-
-            $("#actualQty").text(rowCount);
-            $("#countdown").text(planQty - rowCount);
-
-            updateConfirmButton();
-        }
-
-
-
-        function recalculateQuantities() {
-            let rowCount = $("#dataTable tr").length;
-            let planQty = parseInt($("#planQty").text());
-
-            $("#actualQty").text(rowCount);
-            $("#countdown").text(planQty - rowCount);
-
-            updateConfirmButton();
-        }
-
-        $("#confirmBtn").click(function () {
-            Swal.fire({
-                title: "Confirm All Scans?",
-                text: "Are you sure all scans are complete?",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Yes, Confirm",
-                cancelButtonText: "No, Cancel"
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire("Success", "All scans confirmed!", "success");
-                    $("#confirmBtn").prop("disabled", true);
-                }
-            });
-        });
-
-        $("#resetBtn").click(function () {
-            let checkedItems = $(".row-checkbox:checked").closest("tr");
-
-            if (checkedItems.length > 0) {
-                Swal.fire({
-                    title: "Are you sure?",
-                    text: "Do you really want to remove the selected rows?",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "Yes, remove it!",
-                    cancelButtonText: "No, keep it"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        checkedItems.each(function () {
-                            let serialNumber = $(this).find("td:eq(2)").text();
-                            scannedSerialNumbers.delete(serialNumber);
-                            $(this).remove();
-                        });
-
-                        recalculateQuantities();
-                        Swal.fire("Deleted!", "Selected rows have been removed.", "success");
-                    }
+                    updateQuantities();
+                    showAlert("Deleted!", "Selected scans have been deleted.", "success");
                 });
             } else {
-                Swal.fire({
-                    title: "Are you sure?",
-                    text: "Do you want to reset the entire scan list?",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "Yes, reset it!",
-                    cancelButtonText: "No, keep it"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        scannedRFIDs.clear();
-                        scannedSerialNumbers.clear();
-                        $("#dataTable").empty();
-                        recalculateQuantities();
-                        Swal.fire("Reset!", "Scan list has been reset.", "success");
-                    }
+                showConfirmation("Are you sure?", "Do you want to reset the entire scan list?", () => {
+                    scannedSerialNumbers.clear();
+                    elements.dataTable.empty();
+                    updateQuantities();
+                    showAlert("Reset!", "All scans have been reset.", "success");
                 });
             }
-        });
-    });
+        }
 
-</script> 
+        function showAlert(title, text, icon) {
+            Swal.fire({ title, text, icon });
+        }
+
+        function showConfirmation(title, text, onConfirm) {
+            Swal.fire({
+                title, text, icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes",
+                cancelButtonText: "No"
+            }).then(result => {
+                if (result.isConfirmed) onConfirm();
+            });
+        }
+
+        function resetInput() {
+            elements.serialNumberInput.val("").focus();
+        }
+    });
+</script>
