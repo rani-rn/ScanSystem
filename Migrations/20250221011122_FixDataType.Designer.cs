@@ -12,8 +12,8 @@ using ScanBarcode.Models;
 namespace ScanBarcode.Migrations
 {
     [DbContext(typeof(ScanSystemContext))]
-    [Migration("20250220023528_fixdatatype")]
-    partial class fixdatatype
+    [Migration("20250221011122_FixDataType")]
+    partial class FixDataType
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,6 +34,7 @@ namespace ScanBarcode.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Doid"));
 
                     b.Property<string>("ContNo")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Destination")

@@ -31,6 +31,7 @@ namespace ScanBarcode.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Doid"));
 
                     b.Property<string>("ContNo")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Destination")
