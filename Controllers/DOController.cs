@@ -130,7 +130,10 @@ public class DOController : ControllerBase
     }
 
     [HttpPost("move-to-mastertable/{doId}")]
-    public async Task<IActionResult> MoveToMasterTable(int doId, [FromBody] List<string> serialNumbers)
+public async Task<IActionResult> MoveToMasterTable(int doId, [FromBody] List<string> serialNumbers)
+{
+    using var transaction = await _context.Database.BeginTransactionAsync();
+    try
     {
         var deliveryOrder = await _context.DeliveryOrders.FirstOrDefaultAsync(d => d.Doid == doId);
         if (deliveryOrder == null)
@@ -156,13 +159,17 @@ public class DOController : ControllerBase
         }
 
         var actualQty = masterItems.Count;
+        var currentTotalItems = await _context.MasterTables
+                                    .CountAsync(mt => mt.Donumber == deliveryOrder.Donumber);
         var demandQty = deliveryOrder.Qty;
 
-        if (actualQty + deliveryOrder.Qty > demandQty)
+        // Cek apakah jumlah yang discan melebihi kebutuhan
+        if (currentTotalItems + actualQty > demandQty)
         {
             return BadRequest(new { error = "Demand quantity exceeded!" });
         }
 
+        // Pindah data ke MasterTable
         foreach (var item in masterItems)
         {
             var mastertableEntry = new MasterTable
@@ -180,9 +187,11 @@ public class DOController : ControllerBase
         }
         await _context.SaveChangesAsync();
 
+        // Hapus dari MasterItems
         _context.MasterItems.RemoveRange(masterItems);
         await _context.SaveChangesAsync();
 
+        // Proses Shipment
         var shipment = await _context.Shipments
             .FirstOrDefaultAsync(s => s.Doid == deliveryOrder.Doid);
         if (shipment == null)
@@ -194,13 +203,13 @@ public class DOController : ControllerBase
                 ContNo = deliveryOrder.ContNo,
                 Destination = deliveryOrder.Destination,
                 ModelId = deliveryOrder.ModelId,
-                Qty = masterItems.Count
+                Qty = actualQty
             };
             _context.Shipments.Add(shipment);
         }
         else
         {
-            shipment.Qty += masterItems.Count;
+            shipment.Qty += actualQty;
         }
         await _context.SaveChangesAsync();
 
@@ -213,7 +222,15 @@ public class DOController : ControllerBase
         }
         await _context.SaveChangesAsync();
 
+        await transaction.CommitAsync();
+
         return Ok(new { message = "Scanned items successfully moved to MasterTable", actualQty = shipment.Qty });
     }
+    catch (Exception ex)
+    {
+        await transaction.RollbackAsync();
+        return StatusCode(500, new { error = "Internal Server Error", details = ex.Message });
+    }
+}
 
 }

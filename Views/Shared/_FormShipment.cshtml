@@ -75,14 +75,14 @@
     <div class="form-row">
         <div class="form-group col-md-6">
             <label for="contNo">Container</label>
-        <input type="text" class="form-control" id="contNo" placeholder="Container" readonly>
+            <input type="text" class="form-control" id="contNo" placeholder="Container" readonly>
         </div>
         <div class="form-group col-md-6">
             <label for="status">Status</label>
             <input type="text" class="form-control" id="status" placeholder="Status" readonly>
         </div>
     </div>
-      <div class="form-group">
+    <div class="form-group">
         <input type="text" class="form-control" id="serialNumber" placeholder="Serial Number" autofocus>
     </div>
     <div class="stats">
@@ -185,30 +185,30 @@
                 if (doId) {
                     loadDeliveryOrderDetails(doId);
                 }
-            }    
-            if(doId){
+            }
+            if (doId) {
                 checkDOStatus(doId);
             }
             elements.deliveryOrderSelect.data("previous", elements.deliveryOrderSelect.val());
         }
 
         function checkDOStatus(doId) {
-    fetch(`/api/deliveryorder/${doId}`)
-        .then(response => response.json())
-        .then(data => {
-            $("#status").val(data.status);
-            const status = data.status.toLowerCase();
-            if (data.status === "completed") {
-                
-                elements.serialNumberInput.prop("disabled", true);
-                showAlert("Warning", "DO ini sudah memenuhi permintaan dan tidak bisa di-scan lagi!", "warning");
-            } else {
-                elements.serialNumberInput.prop("disabled", false);
-                loadDeliveryOrderDetails(doId);
-            }
-        })
-        .catch(() => showAlert("Error", "Gagal memeriksa status Delivery Order", "error"));
-}
+            fetch(`/api/deliveryorder/${doId}`)
+                .then(response => response.json())
+                .then(data => {
+                    $("#status").val(data.status);
+                    const status = data.status.toLowerCase();
+                    if (data.status === "completed") {
+
+                        elements.serialNumberInput.prop("disabled", true);
+                        showAlert("Warning", "This DO has fulfilled the request and cannot be scanned again!", "warning");
+                    } else {
+                        elements.serialNumberInput.prop("disabled", false);
+                        loadDeliveryOrderDetails(doId);
+                    }
+                })
+                .catch(() => showAlert("Error", "Gagal memeriksa status Delivery Order", "error"));
+        }
 
         function loadDeliveryOrderDetails(doId) {
             fetch(`/api/deliveryorder/${doId}`)
@@ -241,6 +241,33 @@
 
         function isRFID(input) {
             return input.startsWith("TAG");
+        }
+
+        function validateRFID(rfid) {
+            fetch(`/api/validate/${rfid}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        showAlert("Error", "RFID not found!", "error");
+                        resetInput();
+                        return;
+                    }
+
+                    const requiredQty = parseInt(elements.planQty.text());
+                    const currentQty = scannedSerialNumbers.size;
+                    const rfidItemsCount = data.length;
+                    const totalQty = currentQty + rfidItemsCount;
+
+                    if (totalQty > requiredQty) {
+                        showAlert("Warning", "the number of items in RFID exceeds demand!", "warning");
+                        resetInput();
+                        return;
+                    }
+
+                    data.forEach(item => addSerialNumber(item.serialNumber));
+                    resetInput();
+                })
+                .catch(() => showAlert("Error", "Failed to validate RFID", "error"));
         }
 
         function validateSerialNumber(serialNumber) {
@@ -279,7 +306,7 @@
             const actual = scannedSerialNumbers.size;
 
             if (actual >= planned) {
-                showAlert("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
+                showAlert("Warning", "Demand has reached!", "warning");
                 resetInput();
                 return;
             }
@@ -319,16 +346,22 @@
         function confirmAllScans() {
             const serialNumbers = Array.from(scannedSerialNumbers);
             const doId = elements.deliveryOrderSelect.val();
+            const actualQty = scannedSerialNumbers.size;
 
             if (!doId || serialNumbers.length === 0) {
                 showAlert("Error", "No items to confirm!", "error");
                 return;
             }
 
+            const payload = {
+                serialNumbers: serialNumbers,
+                actualQty: actualQty
+            };
+
             fetch(`/api/deliveryorder/move-to-mastertable/${doId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(serialNumbers),
+                body: JSON.stringify(payload),
             })
                 .then(response => response.json())
                 .then(data => {
