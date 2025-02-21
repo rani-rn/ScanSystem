@@ -12,8 +12,8 @@ using ScanBarcode.Models;
 namespace ScanBarcode.Migrations
 {
     [DbContext(typeof(ScanSystemContext))]
-    [Migration("20250219013234_fixingnull")]
-    partial class fixingnull
+    [Migration("20250221064602_nullable")]
+    partial class nullable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,6 +33,10 @@ namespace ScanBarcode.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Doid"));
 
+                    b.Property<string>("ContNo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Destination")
                         .HasColumnType("nvarchar(max)");
 
@@ -43,7 +47,7 @@ namespace ScanBarcode.Migrations
                     b.Property<int>("ModelId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Qty")
+                    b.Property<int>("Qty")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("RequestedDate")
@@ -106,8 +110,9 @@ namespace ScanBarcode.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("LineProduction")
-                        .HasColumnType("int");
+                    b.Property<string>("LineProduction")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Model")
                         .IsRequired()
@@ -120,7 +125,7 @@ namespace ScanBarcode.Migrations
                     b.Property<DateTime>("ShipmentDateTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("ShipmentId")
+                    b.Property<int?>("ShipmentId")
                         .HasColumnType("int");
 
                     b.HasKey("MasterId");
@@ -184,7 +189,6 @@ namespace ScanBarcode.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ShipmentId"));
 
                     b.Property<string>("ContNo")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Destination")
@@ -194,10 +198,10 @@ namespace ScanBarcode.Migrations
                     b.Property<int>("Doid")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ModelId")
+                    b.Property<int>("ModelId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Qty")
+                    b.Property<int>("Qty")
                         .HasColumnType("int");
 
                     b.Property<int>("RfidtagId")

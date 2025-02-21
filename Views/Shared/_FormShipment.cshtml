@@ -151,8 +151,36 @@
         }
 
         function handleDeliveryOrderChange() {
-            const doId = $(this).val();
-            doId ? loadDeliveryOrderDetails(doId) : clearDeliveryOrderDetails();
+            const actual = parseInt(elements.actualQty.text());
+
+            if (actual > 0) {
+                Swal.fire({
+                    title: "Warning",
+                    text: "Items you have scanned will disappear, are you sure you want to change delivery order?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes",
+                    cancelButtonText: "Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        clearDeliveryOrderDetails();
+                        const doId = elements.deliveryOrderSelect.val();
+                        if (doId) {
+                            loadDeliveryOrderDetails(doId);
+                        }
+                    } else {
+                        elements.deliveryOrderSelect.val(elements.deliveryOrderSelect.data("previous"));
+                    }
+                });
+            } else {
+                clearDeliveryOrderDetails();
+                const doId = elements.deliveryOrderSelect.val();
+                if (doId) {
+                    loadDeliveryOrderDetails(doId);
+                }
+            }
+
+            elements.deliveryOrderSelect.data("previous", elements.deliveryOrderSelect.val());
         }
 
         function loadDeliveryOrderDetails(doId) {
@@ -172,6 +200,7 @@
             $("#model, #destination, #contNo").val("");
             updateStats(0, 0);
             elements.dataTable.empty();
+            scannedSerialNumbers.clear();
             elements.confirmBtn.prop("disabled", true);
             elements.serialNumberInput.prop("disabled", true);
         }
@@ -187,48 +216,56 @@
         }
 
         function validateSerialNumber(serialNumber) {
-    if (scannedSerialNumbers.has(serialNumber)) {
-        showAlert("Error", "Serial Number has been scanned!", "warning");
-        resetInput();
-        return;
-    }
-
-    fetch(`/api/deliveryorder/validate/${serialNumber}`)
-        .then(response => response.json())
-        .then(data => {
-            if (!data || data.length === 0) {
-                showAlert("Error", "Serial Number not found!", "error");
+            if (scannedSerialNumbers.has(serialNumber)) {
+                showAlert("Error", "Serial Number has been scanned!", "warning");
                 resetInput();
                 return;
             }
 
-            // Tambahkan pengecekan model di sini
-            const deliveryOrderModel = $("#model").val();
-            if (data[0].model !== deliveryOrderModel) {
-                showAlert("Error", "Model tidak sesuai dengan Delivery Order!", "error");
-                resetInput();
-                return;
-            }
+            fetch(`/api/deliveryorder/validate/${serialNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        showAlert("Error", "Serial Number not found!", "error");
+                        resetInput();
+                        return;
+                    }
 
-            data.forEach(item => addSerialNumber(item.serialNumber));
-            resetInput();
-        })
-        .catch(() => showAlert("Error", "Failed to validate serial number", "error"));
-}
+                    const deliveryOrderModel = $("#model").val();
+                    if (data[0].model !== deliveryOrderModel) {
+                        showAlert("Error", "Model tidak sesuai dengan Delivery Order!", "error");
+                        resetInput();
+                        return;
+                    }
 
+                    data.forEach(item => addSerialNumber(item.serialNumber));
+                    resetInput();
+                })
+                .catch(() => showAlert("Error", "Failed to validate serial number", "error"));
+        }
 
         function addSerialNumber(serial) {
             if (!serial || scannedSerialNumbers.has(serial)) return;
 
+            const planned = parseInt(elements.planQty.text());
+            const actual = scannedSerialNumbers.size;
+
+            if (actual >= planned) {
+                showAlert("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
+                resetInput();
+                return;
+            }
+
             scannedSerialNumbers.add(serial);
             elements.dataTable.append(`
-            <tr>
-                <td><input type="checkbox" class="row-checkbox"></td>
-                <td>${serial}</td>
-            </tr>
-        `);
+        <tr>
+            <td><input type="checkbox" class="row-checkbox"></td>
+            <td>${serial}</td>
+        </tr>
+    `);
+
             updateQuantities(1);
-            updateStats(parseInt(elements.planQty.text()), scannedSerialNumbers.size);
+            updateStats(planned, scannedSerialNumbers.size);
         }
 
         function updateQuantities(newSerials = 0) {

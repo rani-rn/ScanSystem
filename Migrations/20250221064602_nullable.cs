@@ -5,7 +5,7 @@
 namespace ScanBarcode.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class nullable : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

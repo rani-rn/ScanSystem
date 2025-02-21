@@ -15,8 +15,11 @@ public partial class DeliveryOrder
 
     public int ModelId { get; set; }
 
-    public int? Qty { get; set; }
+    public int Qty { get; set; }
+
 
     public string? Destination { get; set; }
+
+    public string ContNo {get; set;}
 
 }

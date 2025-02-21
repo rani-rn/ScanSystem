@@ -18,7 +18,7 @@ public partial class MasterItem
 
     public string Model { get; set; }
 
-    public string LineProduction { get; set; } = null!;
+    public string LineProduction { get; set; }
 
     
 }
