@@ -139,7 +139,7 @@
             elements.deliveryOrderSelect.change(handleDeliveryOrderChange);
             elements.serialNumberInput.on("change", processScan);
             elements.confirmBtn.click(confirmAllScans);
-            
+
             elements.resetBtn.click(resetScanList);
         }
 
@@ -157,12 +157,26 @@
                 showAlert("Error", "Failed to load delivery orders", "error");
             }
         }
+        let tempData = {
+            model: "",
+            destination: "",
+            contNo: "",
+            status: ""
+        };
 
         function handleDeliveryOrderChange() {
             const actual = parseInt(elements.actualQty.text());
             const doId = elements.deliveryOrderSelect.val();
 
             if (actual > 0) {
+                // Simpan data saat ini ke variabel sementara
+                tempData = {
+                    model: $("#model").val(),
+                    destination: $("#destination").val(),
+                    contNo: $("#contNo").val(),
+                    status: $("#status").val()
+                };
+
                 Swal.fire({
                     title: "Warning",
                     text: "Items you have scanned will disappear, are you sure you want to change delivery order?",
@@ -175,6 +189,12 @@
                         clearDeliveryOrderDetails();
                         if (doId) loadDeliveryOrderDetails(doId);
                     } else {
+                        // Kembalikan data dari variabel sementara jika Cancel
+                        $("#model").val(tempData.model);
+                        $("#destination").val(tempData.destination);
+                        $("#contNo").val(tempData.contNo);
+                        $("#status").val(tempData.status);
+
                         elements.deliveryOrderSelect.val(elements.deliveryOrderSelect.data("previous"));
                     }
                 });
@@ -186,6 +206,7 @@
             if (doId) checkDOStatus(doId);
             elements.deliveryOrderSelect.data("previous", elements.deliveryOrderSelect.val());
         }
+
 
         async function checkDOStatus(doId) {
             try {
@@ -269,13 +290,13 @@
                     return;
                 }
                 const deliveryOrderModel = $("#model").val();
-        const mismatchedItems = data.filter(item => item.model !== deliveryOrderModel);
+                const mismatchedItems = data.filter(item => item.model !== deliveryOrderModel);
 
-        if (mismatchedItems.length > 0) {
-            showAlert("Error", "RFID does not match the Delivery Order model!", "error");
-            resetInput();
-            return;
-        }
+                if (mismatchedItems.length > 0) {
+                    showAlert("Error", "RFID does not match the Delivery Order model!", "error");
+                    resetInput();
+                    return;
+                }
 
                 const requiredQty = parseInt(elements.planQty.text());
                 const totalQty = scannedSerialNumbers.size + data.length;
@@ -380,47 +401,46 @@
         }
 
         function resetScanList() {
-    const selectedCheckboxes = elements.dataTable.find("input.row-checkbox:checked");
+            const selectedCheckboxes = elements.dataTable.find("input.row-checkbox:checked");
 
-    if (selectedCheckboxes.length > 0) {
-        Swal.fire({
-            title: "Are you sure?",
-            text: "Do you want to delete the selected scans?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes",
-            cancelButtonText: "Cancel"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                selectedCheckboxes.each(function () {
-                    const row = $(this).closest("tr");
-                    const serial = row.find("td:nth-child(2)").text().trim();
-                    scannedSerialNumbers.delete(serial);
-                    row.remove();
+            if (selectedCheckboxes.length > 0) {
+                Swal.fire({
+                    title: "Are you sure?",
+                    text: "Do you want to delete the selected scans?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes",
+                    cancelButtonText: "Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        selectedCheckboxes.each(function () {
+                            const row = $(this).closest("tr");
+                            const serial = row.find("td:nth-child(2)").text().trim();
+                            scannedSerialNumbers.delete(serial);
+                            row.remove();
+                        });
+                        updateQuantities();
+                        showAlert("Deleted!", "Selected scans have been deleted.", "success");
+                    }
                 });
-                updateQuantities();
-                showAlert("Deleted!", "Selected scans have been deleted.", "success");
+            } else {
+                Swal.fire({
+                    title: "Are you sure?",
+                    text: "Do you want to reset the entire scan list?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes",
+                    cancelButtonText: "Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        scannedSerialNumbers.clear();
+                        elements.dataTable.empty();
+                        updateQuantities();
+                        showAlert("Reset!", "All scans have been reset.", "success");
+                    }
+                });
             }
-        });
-    } else {
-        Swal.fire({
-            title: "Are you sure?",
-            text: "Do you want to reset the entire scan list?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes",
-            cancelButtonText: "Cancel"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                scannedSerialNumbers.clear();
-                elements.dataTable.empty();
-                updateQuantities();
-                showAlert("Reset!", "All scans have been reset.", "success");
-            }
-        });
-    }
-}
-
+        }
         function showAlert(title, text, icon) {
             Swal.fire({ title, text, icon });
         }
