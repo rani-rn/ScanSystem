@@ -157,10 +157,15 @@
             }
         }
         let tempData = {
+            deliveryOrderSelect: "",
             model: "",
             destination: "",
             contNo: "",
-            status: ""
+            status: "",
+            actualQty: "",
+            planQty: "",
+            countdown: ""
+
         };
 
         function handleDeliveryOrderChange() {
@@ -168,12 +173,14 @@
             const doId = elements.deliveryOrderSelect.val();
 
             if (actual > 0) {
-                // Simpan data saat ini ke variabel sementara
                 tempData = {
                     model: $("#model").val(),
                     destination: $("#destination").val(),
                     contNo: $("#contNo").val(),
-                    status: $("#status").val()
+                    status: $("#status").val(),
+                    planQty: elements.planQty.text(),
+                    actualQty: elements.actualQty.text(),
+                    countdown: elements.countdown.text(),
                 };
 
                 Swal.fire({
@@ -188,13 +195,16 @@
                         clearDeliveryOrderDetails();
                         if (doId) loadDeliveryOrderDetails(doId);
                     } else {
-                        // Kembalikan data dari variabel sementara jika Cancel
+                        
                         $("#model").val(tempData.model);
                         $("#destination").val(tempData.destination);
                         $("#contNo").val(tempData.contNo);
                         $("#status").val(tempData.status);
 
-                        elements.deliveryOrderSelect.val(elements.deliveryOrderSelect.data("previous"));
+                        elements.planQty.text(tempData.planQty);
+                        elements.actualQty.text(tempData.actualQty);
+                        elements.countdown.text(tempData.countdown);
+                        elements.deliveryOrderSelect.data(elements.deliveryOrderSelect.data("previous"));
                     }
                 });
             } else {
@@ -202,8 +212,11 @@
                 if (doId) loadDeliveryOrderDetails(doId);
             }
 
-            if (doId) checkDOStatus(doId);
-            elements.deliveryOrderSelect.data("previous", elements.deliveryOrderSelect.val());
+            if (doId) {
+                checkDOStatus(doId).then(() => {
+                    elements.deliveryOrderSelect.data("previous", elements.deliveryOrderSelect.val());
+                });
+            }
         }
 
         async function checkDOStatus(doId) {
@@ -446,7 +459,7 @@
         function resetInput() {
             elements.serialNumberInput.val("").focus();
         }
-        
+
     });
 
 </script>
