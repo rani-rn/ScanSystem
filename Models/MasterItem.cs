@@ -12,7 +12,7 @@ public partial class MasterItem
     [MaxLength(25)]
     public string SerialNumber { get; set; } = null!;
 
-    public int RfidtagId { get; set; }
+    public int? RfidtagId { get; set; }
 
     public DateTime AddedDateTime { get; set; }
 

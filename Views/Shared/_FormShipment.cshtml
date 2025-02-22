@@ -58,27 +58,31 @@
     <div class="form-group">
         <label for="deliveryOrder">Delivery Order</label>
         <select class="form-control" id="deliveryOrder">
-            <option value="">Select</option>
+            <option value=""></option>
         </select>
     </div>
     <div class="form-row">
         <div class="form-group col-md-6">
+            <label for="model">Model</label>
             <input type="text" class="form-control" id="model" placeholder="Model" readonly>
         </div>
         <div class="form-group col-md-6">
+            <label for="destination">Destination</label>
             <input type="text" class="form-control" id="destination" placeholder="Destination" readonly>
         </div>
+
     </div>
     <div class="form-group">
-        <input type="text" class="form-control" id="containerNo" placeholder="Container No" readonly>
+        <label for="contNo">Container</label>
+        <input type="text" class="form-control" id="contNo" placeholder="Container" readonly>
     </div>
     <div class="form-group">
         <input type="text" class="form-control" id="serialNumber" placeholder="Serial Number" autofocus>
     </div>
     <div class="stats">
         <div class="stat-box">
-            <h4>Package Size</h4>
-            <p id="planQty">3</p>
+            <h4>Demand</h4>
+            <p id="planQty">0</p>
         </div>
         <div class="stat-box stats-box">
             <h4>Actual</h4>
@@ -94,11 +98,6 @@
             <thead class="table-dark">
                 <tr>
                     <th>Select</th>
-                    <th>Destination</th>
-                    <th>Shipment Date</th>
-                    <th>Model</th>
-                    <th>DO</th>
-                    <th>Container No</th>
                     <th>Serial Number</th>
                 </tr>
             </thead>
@@ -106,132 +105,222 @@
         </table>
     </div>
     <div class="buttons">
-        <button id="confirmBtn" class="btn btn-primary">Confirm</button>
+        <button id="confirmBtn" class="btn btn-primary" disabled>Confirm</button>
         <button id="resetBtn" class="btn btn-danger">Reset List</button>
     </div>
 </div>
 <script>
     $(document).ready(function () {
-        function updateConfirmButton() {
-            let planQty = parseInt($("#planQty").text());
-            let actualQty = parseInt($("#actualQty").text());
-            $("#confirmBtn").prop("disabled", actualQty !== planQty);
+        const elements = {
+            deliveryOrderSelect: $("#deliveryOrder"),
+            serialNumberInput: $("#serialNumber"),
+            dataTable: $("#dataTable"),
+            confirmBtn: $("#confirmBtn"),
+            resetBtn: $("#resetBtn"),
+            planQty: $("#planQty"),
+            actualQty: $("#actualQty"),
+            countdown: $("#countdown"),
+        };
+
+        const scannedSerialNumbers = new Set();
+
+        init();
+
+        function init() {
+            loadDeliveryOrders();
+            elements.serialNumberInput.prop("disabled", true);
+
+            elements.deliveryOrderSelect.change(handleDeliveryOrderChange);
+            elements.serialNumberInput.on("change", processScan);
+            elements.confirmBtn.click(confirmAllScans);
+            elements.resetBtn.click(resetScanList);
         }
 
-        let scanTimeout;
+        function loadDeliveryOrders() {
+            fetch("/api/deliveryorder")
+                .then(response => response.json())
+                .then(data => {
+                    elements.deliveryOrderSelect.empty().append('<option value="">Select</option>');
+                    data.forEach(item => {
+                        elements.deliveryOrderSelect.append(
+                            `<option value="${item.doid}" data-donumber="${item.donumber}">${item.donumber}</option>`
+                        );
+                    });
+                })
+                .catch(() => showAlert("Error", "Failed to load delivery orders", "error"));
+        }
 
-            $("#serialNumber").on("change blur", function () {
-        processScan();
-    });
+        function handleDeliveryOrderChange() {
+            const doId = $(this).val();
+            doId ? loadDeliveryOrderDetails(doId) : clearDeliveryOrderDetails();
+        }
 
+        function loadDeliveryOrderDetails(doId) {
+            fetch(`/api/deliveryorder/${doId}`)
+                .then(response => response.json())
+                .then(data => {
+                    $("#model").val(data.modelName);
+                    $("#destination").val(data.destination);
+                    $("#contNo").val(data.contNo);
+                    updateStats(data.qty, 0);
+                    elements.serialNumberInput.prop("disabled", false);
+                })
+                .catch(() => showAlert("Error", "Failed to load Delivery Order details", "error"));
+        }
+
+        function clearDeliveryOrderDetails() {
+            $("#model, #destination, #contNo").val("");
+            updateStats(0, 0);
+            elements.dataTable.empty();
+            elements.confirmBtn.prop("disabled", true);
+            elements.serialNumberInput.prop("disabled", true);
+        }
 
         function processScan() {
-            let serialNumber = $("#serialNumber").val().trim();
-            if (serialNumber === "") return;
-
-            let exists = $("#dataTable tr td:nth-child(7)").filter(function () {
-                return $(this).text() === serialNumber;
-            }).length > 0;
-
-            if (exists) {
-                Swal.fire("Error", "Serial Number already exists!", "error");
-                $("#serialNumber").val("").focus();
-                return;
-            }
-
-            let planQty = parseInt($("#planQty").text());
-            let actualQty = parseInt($("#actualQty").text());
-
-            if (actualQty >= planQty) {
-                Swal.fire("Error", "Plan quantity reached!", "error");
-                $("#serialNumber").val("").focus();
-                return;
-            }
-
-            let destination = $("#destination").val() || "-";
-            let shipmentDate = new Date().toISOString().split("T")[0];
-            let model = $("#model").val() || "-";
-            let deliveryOrder = $("#deliveryOrder").val() || "-";
-            let containerNo = $("#containerNo").val() || "-";
-
-            $("#dataTable").append(`
-                <tr>
-                    <td><input type="checkbox" class="row-checkbox"></td>
-                    <td>${destination}</td>
-                    <td>${shipmentDate}</td>
-                    <td>${model}</td>
-                    <td>${deliveryOrder}</td>
-                    <td>${containerNo}</td>
-                    <td>${serialNumber}</td>
-                </tr>
-            `);
-
-            $("#actualQty").text(actualQty + 1);
-            $("#countdown").text(planQty - (actualQty + 1));
-
-            updateConfirmButton();
-            $("#serialNumber").val("").focus();
+            const input = elements.serialNumberInput.val().trim();
+            if (!input) return;
+            isRFID(input) ? validateRFID(input) : validateSerialNumber(input);
         }
 
-        $("#confirmBtn").click(function () {
-            Swal.fire({
-                title: "Confirm All Scans?",
-                text: "Are you sure all scans are complete?",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Yes, Confirm",
-                cancelButtonText: "No, Cancel"
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire("Success", "All scans confirmed!", "success");
-                    $("#confirmBtn").prop("disabled", true);
-                }
-            });
-        });
+        function isRFID(input) {
+            return input.startsWith("TAG");
+        }
 
-        $("#resetBtn").click(function () {
-            let checkedItems = $(".row-checkbox:checked").closest("tr");
+        function validateSerialNumber(serialNumber) {
+    if (scannedSerialNumbers.has(serialNumber)) {
+        showAlert("Error", "Serial Number has been scanned!", "warning");
+        resetInput();
+        return;
+    }
 
-            if (checkedItems.length > 0) {
-                Swal.fire({
-                    title: "Delete Selected Items?",
-                    text: "Are you sure you want to delete the selected items?",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "Yes, Delete",
-                    cancelButtonText: "No, Cancel"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        checkedItems.remove();
+    fetch(`/api/deliveryorder/validate/${serialNumber}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data || data.length === 0) {
+                showAlert("Error", "Serial Number not found!", "error");
+                resetInput();
+                return;
+            }
 
-                        let actualQty = $("#dataTable tr").length;
-                        $("#actualQty").text(actualQty);
-                        $("#countdown").text($("#planQty").text() - actualQty);
+            const deliveryOrderModel = $("#model").val();
+            if (data[0].model !== deliveryOrderModel) {
+                showAlert("Error", "Model tidak sesuai dengan Delivery Order!", "error");
+                resetInput();
+                return;
+            }
 
-                        updateConfirmButton();
-                        Swal.fire("Deleted!", "Selected items have been removed.", "success");
+            data.forEach(item => addSerialNumber(item.serialNumber));
+            resetInput();
+        })
+        .catch(() => showAlert("Error", "Failed to validate serial number", "error"));
+}
+
+
+        function addSerialNumber(serial) {
+            if (!serial || scannedSerialNumbers.has(serial)) return;
+
+            scannedSerialNumbers.add(serial);
+            elements.dataTable.append(`
+            <tr>
+                <td><input type="checkbox" class="row-checkbox"></td>
+                <td>${serial}</td>
+            </tr>
+        `);
+            updateQuantities(1);
+            updateStats(parseInt(elements.planQty.text()), scannedSerialNumbers.size);
+        }
+
+        function updateQuantities(newSerials = 0) {
+            const rowCount = elements.dataTable.find("tr").length;
+            const planned = parseInt(elements.planQty.text());
+
+            if (rowCount > planned) {
+                showAlert("Warning", "Jumlah sudah memenuhi permintaan!", "warning");
+                return;
+            }
+
+            updateStats(planned, rowCount);
+        }
+
+        function updateStats(planned, actual) {
+            elements.planQty.text(planned);
+            elements.actualQty.text(actual);
+            elements.countdown.text(planned - actual);
+
+            elements.confirmBtn.prop("disabled", actual === 0);
+        }
+
+        function confirmAllScans() {
+            const serialNumbers = Array.from(scannedSerialNumbers);
+            const doId = elements.deliveryOrderSelect.val();
+
+            if (!doId || serialNumbers.length === 0) {
+                showAlert("Error", "No items to confirm!", "error");
+                return;
+            }
+
+            fetch(`/api/deliveryorder/move-to-mastertable/${doId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(serialNumbers),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showAlert("Error", data.error, "error");
+                        return;
                     }
+
+                    showAlert("Success", "Items moved to MasterTable!", "success");
+                    scannedSerialNumbers.clear();
+                    elements.dataTable.empty();
+
+                    loadDeliveryOrderDetails(doId);
+                })
+                .catch(() => showAlert("Error", "Failed to confirm scans!", "error"));
+        }
+
+
+        function resetScanList() {
+            const selectedCheckboxes = elements.dataTable.find(".row-checkbox:checked");
+
+            if (selectedCheckboxes.length > 0) {
+                showConfirmation("Are you sure?", "Do you want to delete the selected scans?", () => {
+                    selectedCheckboxes.each(function () {
+                        const row = $(this).closest("tr");
+                        scannedSerialNumbers.delete(row.find("td:nth-child(2)").text());
+                        row.remove();
+                    });
+                    updateQuantities();
+                    showAlert("Deleted!", "Selected scans have been deleted.", "success");
                 });
             } else {
-                Swal.fire({
-                    title: "Reset List?",
-                    text: "Are you sure you want to reset the scan list?",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "Yes, Reset",
-                    cancelButtonText: "No, Cancel"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $("#dataTable").empty();
-                        $("#actualQty").text(0);
-                        $("#countdown").text($("#planQty").text());
-
-                        updateConfirmButton();
-                        Swal.fire("Success", "Scan list reset!", "success");
-                    }
+                showConfirmation("Are you sure?", "Do you want to reset the entire scan list?", () => {
+                    scannedSerialNumbers.clear();
+                    elements.dataTable.empty();
+                    updateQuantities();
+                    showAlert("Reset!", "All scans have been reset.", "success");
                 });
             }
-        });
-    });
+        }
 
+        function showAlert(title, text, icon) {
+            Swal.fire({ title, text, icon });
+        }
+
+        function showConfirmation(title, text, onConfirm) {
+            Swal.fire({
+                title, text, icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes",
+                cancelButtonText: "No"
+            }).then(result => {
+                if (result.isConfirmed) onConfirm();
+            });
+        }
+
+        function resetInput() {
+            elements.serialNumberInput.val("").focus();
+        }
+    });
 </script>

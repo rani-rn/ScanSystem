@@ -11,16 +11,14 @@ public partial class Shipment
 
     public int Doid { get; set; }
 
-    public int RfidtagId { get; set; }
-
     public DateTime ShipmentDate { get; set; }
 
-    public string ContNo { get; set; }
+    public string? ContNo { get; set; }
 
     public string Destination { get; set; } = null!;
 
-    public int? ModelId { get; set; }
+    public int ModelId { get; set; }
 
-    public int? Qty { get; set; }
+    public int Qty { get; set; }
 
 }

@@ -4,58 +4,37 @@ using ScanBarcode.Models;
 using System.Linq;
 using System.Threading.Tasks;
 
-[Route("api/[controller]")]
+[Route("api/shipments")]
 [ApiController]
-public class ShipmentController : ControllerBase
+public class ShipmentsController : ControllerBase
 {
     private readonly ScanSystemContext _context;
 
-    public ShipmentController(ScanSystemContext context)
+    public ShipmentsController(ScanSystemContext context)
     {
         _context = context;
     }
-
-    [HttpGet("GetDeliveryOrders")]
-    public async Task<IActionResult> GetDeliveryOrders()
+    [HttpGet]
+    public IActionResult GetShipments()
     {
-        var deliveryOrders = await _context.DeliveryOrders
-            .Select(d => new { d.Doid, d.Donumber })
-            .ToListAsync();
+        var shipments = _context.Shipments
+            .Join(
+                _context.ProdModels, 
+                s => s.ModelId,
+                m => m.ModelId,
+                (s, m) => new  
+                {
+                    s.ShipmentId,
+                    s.Doid,
+                    s.ShipmentDate,
+                    s.Destination,
+                    s.ModelId,
+                    ModelName = m.ModelName, 
+                    s.Qty,
+                
+                })
+            .ToList();
 
-        return Ok(deliveryOrders);
-    }
-
-    [HttpGet("GetShipmentDetailsBySerial")]
-    public async Task<IActionResult> GetShipmentDetailsBySerial(string serial)
-    {
-        var shipment = await _context.Shipments
-            .Where(s => s.RfidtagId.ToString() == serial)
-            .Select(s => new
-            {
-                s.ModelId,
-                s.Destination,
-                s.ShipmentDate,
-                s.ContNo,
-                s.Qty,
-                Actual = _context.Shipments.Count(sh => sh.RfidtagId == s.RfidtagId) // Hitung aktual
-            })
-            .FirstOrDefaultAsync();
-
-        if (shipment == null)
-            return NotFound(new { success = false, message = "Serial Number not found!" });
-
-        return Ok(new { success = true, data = shipment });
-    }
-
-    [HttpPost("Create")]
-    public async Task<IActionResult> CreateShipment([FromBody] Shipment shipment)
-    {
-        if (shipment == null || shipment.RfidtagId == 0)
-            return BadRequest(new { success = false, message = "Invalid serial number!" });
-
-        _context.Shipments.Add(shipment);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { success = true, message = "Shipment confirmed!" });
+        return Ok(shipments);
     }
 }

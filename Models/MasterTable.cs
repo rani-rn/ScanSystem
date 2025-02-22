@@ -11,9 +11,9 @@ public partial class MasterTable
     public string SerialNumber { get; set; } = null!;
     public string Model { get; set; }
     public string Donumber { get; set; }
-    public int LineProduction { get; set; }
+    public string LineProduction { get; set; }
     public string Destination { get; set; }
-    public string ContNo { get; set; }
-    public int ShipmentId { get; set; }
-    public DateTime ShipmentDateTime { get; set; }
+    public string? ContNo { get; set; }
+    public int? ShipmentId { get; set; }
+    public DateTime? ShipmentDateTime { get; set; }
 }
