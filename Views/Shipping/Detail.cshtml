@@ -1,0 +1,58 @@
+@model ShippingDetailViewModel
+
+@{
+    ViewData["Title"] = "Shipping Details";
+}
+
+<h2 class="text-center mt-3">Shipping Details</h2>
+
+<div class="container-sm" style="max-width: 600px;">
+    <div class="mb-2">
+        <label class="form-label fw-bold">SO Number:</label>
+        <p class="form-control-static">@Model.SONumber</p>
+    </div>
+    <div class="mb-2">
+        <label class="form-label fw-bold">Destination:</label>
+        <p class="form-control-static">@Model.Destination</p>
+    </div>
+    <div class="mb-2">
+        <label class="form-label fw-bold">Date:</label>
+        <p class="form-control-static">@Model.Date.ToString("yyyy-MM-dd")</p>
+    </div>
+
+    <h5 class="mt-3">Delivery Order List</h5>
+    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+        <table class="table table-bordered table-striped table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>DO Number</th>
+                    <th>Model</th>
+                    <th>Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.DeliveryOrders.Any())
+                {
+                    @foreach (var doItem in Model.DeliveryOrders)
+                    {
+                        <tr>
+                            <td>@doItem.DONumber</td>
+                            <td>@doItem.ModelName</td>
+                            <td>@doItem.Quantity</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="3" class="text-center">No Delivery Orders</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-grid gap-2 mt-3">
+        <a href="@Url.Action("Index", "Shipping")" class="btn btn-secondary btn-sm">Back to List</a>
+    </div>
+</div>

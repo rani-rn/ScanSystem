@@ -1,0 +1,145 @@
+@{
+    ViewData["Title"] = "Edit Shipping";
+}
+
+<h2 class="text-center mt-3">Edit Shipping</h2>
+
+<div class="container-sm" style="max-width: 600px;">
+    <form method="post" id="shipping-form">
+        <input type="hidden" id="shippingId" name="shippingId" value="@Model.ShippingId" />
+
+        <div class="mb-2">
+            <label for="soNumber" class="form-label">SO Number</label>
+            <input type="text" class="form-control form-control-sm" id="soNumber" name="soNumber" value="@Model.SoNumber" required>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label for="destination" class="form-label">Destination</label>
+                <input type="text" class="form-control form-control-sm" id="destination" name="destination" value="@Model.Destination" required>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label for="date" class="form-label">Date</label>
+                <input type="date" class="form-control form-control-sm" id="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" required>
+            </div>
+        </div>
+
+        <fieldset id="do-form">
+            <h5 class="mt-3">Delivery Order Details</h5>
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label for="doNumber" class="form-label">DO Number</label>
+                    <input type="text" class="form-control form-control-sm" id="doNumber">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label for="model" class="form-label">Model</label>
+                    <input type="text" class="form-control form-control-sm" id="model">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label for="qty" class="form-label">Quantity</label>
+                    <input type="number" class="form-control form-control-sm" id="qty">
+                </div>
+            </div>
+            <button type="button" class="btn btn-info btn-sm w-100" id="add-do">Add DO</button>
+        </fieldset>
+    </form>
+
+    <h5 class="mt-3">DO Records</h5>
+    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+        <table class="table table-bordered table-striped table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Select</th>
+                    <th>DO Number</th>
+                    <th>Model</th>
+                    <th>Quantity</th>
+                </tr>
+            </thead>
+            <tbody id="do-table-body">
+                @if (Model.DeliveryOrders.Count > 0)
+                {
+                    foreach (var item in Model.DeliveryOrders)
+                    {
+                        <tr>
+                            <td class="text-center"><input type="checkbox" class="delete-checkbox"></td>
+                            <td>@item.DONumber</td>
+                            <td>@item.Model</td>
+                            <td>@item.Qty</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="4" class="text-center">No Data</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-grid gap-2 mt-3">
+        <button type="button" class="btn btn-danger btn-sm" id="reset-list">Reset</button>
+        <button type="button" class="btn btn-success btn-sm" id="update">Update</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="cancel">Cancel</button>
+    </div>
+</div>
+
+<script>
+    document.getElementById("add-do").addEventListener("click", function() {
+        let doNumber = document.getElementById("doNumber").value;
+        let model = document.getElementById("model").value;
+        let qty = document.getElementById("qty").value;
+
+        if (!doNumber || !model || !qty) {
+            alert("Please fill all DO fields!");
+            return;
+        }
+
+        let tableBody = document.getElementById("do-table-body");
+
+        if (tableBody.children.length === 1 && tableBody.children[0].textContent === "No Data") {
+            tableBody.innerHTML = "";
+        }
+
+        let newRow = document.createElement("tr");
+        newRow.innerHTML = `
+            <td class="text-center"><input type="checkbox" class="delete-checkbox"></td>
+            <td>${doNumber}</td>
+            <td>${model}</td>
+            <td>${qty}</td>
+        `;
+
+        newRow.addEventListener("click", function (e) {
+            if (e.target.tagName !== "INPUT") {
+                document.getElementById("doNumber").value = newRow.cells[1].textContent;
+                document.getElementById("model").value = newRow.cells[2].textContent;
+                document.getElementById("qty").value = newRow.cells[3].textContent;
+            }
+        });
+
+        tableBody.appendChild(newRow);
+
+        document.getElementById("doNumber").value = "";
+        document.getElementById("model").value = "";
+        document.getElementById("qty").value = "";
+    });
+
+    document.getElementById("reset-list").addEventListener("click", function() {
+        let checkboxes = document.querySelectorAll(".delete-checkbox:checked");
+        checkboxes.forEach(checkbox => checkbox.closest("tr").remove());
+
+        let tableBody = document.getElementById("do-table-body");
+        if (tableBody.children.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center">No Data</td></tr>`;
+        }
+    });
+
+    document.getElementById("update").addEventListener("click", function() {
+        alert("Data updated successfully!");
+    });
+
+    document.getElementById("cancel").addEventListener("click", function() {
+        window.location.href = "/Shipping/Index";
+    });
+</script>

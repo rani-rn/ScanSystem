@@ -43,6 +43,11 @@ namespace ScanBarcode.Controllers
             return View();
         }
 
+        public IActionResult Shipping()
+        {
+            return RedirectToAction("Index", "Shipping");
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
