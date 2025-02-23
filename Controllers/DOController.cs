@@ -137,22 +137,6 @@ public class DOController : ControllerBase
         return Ok(result);
     }
 
-
-    [HttpPost("remove-rfid")]
-    public async Task<IActionResult> RemoveRfid([FromBody] string serialNumber)
-    {
-        var item = await _context.MasterItems.FirstOrDefaultAsync(mi => mi.SerialNumber == serialNumber);
-        if (item == null)
-        {
-            return NotFound(new { error = "Serial Number Not Found!" });
-        }
-
-        item.RfidtagId = null;
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "RFID success deleted" });
-    }
-
     [HttpPost("move-to-mastertable/{doId}")]
     public async Task<IActionResult> MoveToMasterTable(int doId, [FromBody] List<string> serialNumbers)
     {
@@ -187,13 +171,11 @@ public class DOController : ControllerBase
                                         .CountAsync(mt => mt.Donumber == deliveryOrder.Donumber);
             var demandQty = deliveryOrder.Qty;
 
-            // Cek apakah jumlah yang discan melebihi kebutuhan
             if (currentTotalItems + actualQty > demandQty)
             {
                 return BadRequest(new { error = "Demand quantity exceeded!" });
             }
 
-            // Pindah data ke MasterTable
             foreach (var item in masterItems)
             {
                 var mastertableEntry = new MasterTable

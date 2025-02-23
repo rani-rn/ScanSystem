@@ -9,12 +9,11 @@ public partial class Rfidtag
     [Key]
     public int Id { get; set; }
 
-    public string TagNumber { get; set; } = null!;
-
+    public string TagNumber { get; set; } 
 
     public DateTime CreateDateTime { get; set; }
 
-    public string Model { get; set; }
+    public string Model { get; set; } 
 
     public bool Register { get; set; }
 }

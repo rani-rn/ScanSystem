@@ -51,6 +51,13 @@
         justify-content: center;
         margin-top: 20px;
     }
+
+    .disabled-select {
+        pointer-events: none;
+        background-color: #e9ecef;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
 </style>
 
 <div class="container-form">
@@ -156,61 +163,19 @@
                 showAlert("Error", "Failed to load delivery orders", "error");
             }
         }
-        let tempData = {
-            deliveryOrderSelect: "",
-            model: "",
-            destination: "",
-            contNo: "",
-            status: "",
-            actualQty: "",
-            planQty: "",
-            countdown: ""
-
-        };
 
         function handleDeliveryOrderChange() {
-            const actual = parseInt(elements.actualQty.text());
             const doId = elements.deliveryOrderSelect.val();
 
-            if (actual > 0) {
-                tempData = {
-                    model: $("#model").val(),
-                    destination: $("#destination").val(),
-                    contNo: $("#contNo").val(),
-                    status: $("#status").val(),
-                    planQty: elements.planQty.text(),
-                    actualQty: elements.actualQty.text(),
-                    countdown: elements.countdown.text(),
-                };
-
-                Swal.fire({
-                    title: "Warning",
-                    text: "Items you have scanned will disappear, are you sure you want to change delivery order?",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "Yes",
-                    cancelButtonText: "Cancel"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        clearDeliveryOrderDetails();
-                        if (doId) loadDeliveryOrderDetails(doId);
-                    } else {
-                        
-                        $("#model").val(tempData.model);
-                        $("#destination").val(tempData.destination);
-                        $("#contNo").val(tempData.contNo);
-                        $("#status").val(tempData.status);
-
-                        elements.planQty.text(tempData.planQty);
-                        elements.actualQty.text(tempData.actualQty);
-                        elements.countdown.text(tempData.countdown);
-                        elements.deliveryOrderSelect.data(elements.deliveryOrderSelect.data("previous"));
-                    }
-                });
+            if ($("#tableItem tbody tr").length > 0) {
+                elements.deliveryOrderSelect.addClass('disabled-select').prop('disabled', true);
+                return;
             } else {
-                clearDeliveryOrderDetails();
-                if (doId) loadDeliveryOrderDetails(doId);
+                elements.deliveryOrderSelect.removeClass('disabled-select').prop('disabled', false);
             }
+
+            clearDeliveryOrderDetails();
+            if (doId) loadDeliveryOrderDetails(doId);
 
             if (doId) {
                 checkDOStatus(doId).then(() => {
@@ -218,6 +183,7 @@
                 });
             }
         }
+
 
         async function checkDOStatus(doId) {
             try {
@@ -248,7 +214,8 @@
                 $("#contNo").val(data.contNo);
                 $("#status").val(data.status);
 
-                updateStats(data.qty, 0);
+                const actualQty = data.totalItems || 0;
+                updateStats(data.qty, actualQty);
                 elements.serialNumberInput.prop("disabled", false);
             } catch {
                 showAlert("Error", "Failed to load Delivery Order details", "error");
@@ -260,7 +227,7 @@
             updateStats(0, 0);
             elements.dataTable.empty();
             scannedSerialNumbers.clear();
-            elements.confirmBtn.prop("disabled", true);
+            elements.confirmBtn.prop("disabled", false);
             elements.serialNumberInput.prop("disabled", true);
         }
 
@@ -284,6 +251,7 @@
             }
 
             isRFID(input) ? validateRFID(input) : validateSerialNumber(input);
+
         }
 
         function isRFID(input) {
@@ -362,6 +330,7 @@
         `);
 
             updateQuantities();
+            elements.deliveryOrderSelect.prop('disabled', true);
             updateStats(parseInt(elements.planQty.text()), scannedSerialNumbers.size);
             elements.dataTable.scrollTop(elements.dataTable[0].scrollHeight);
         }
@@ -381,7 +350,8 @@
             elements.confirmBtn.prop("disabled", actual === 0);
         }
 
-        async function confirmAllScans() {
+        async function confirmAllScans(event) {
+            event.preventDefault();
             const serialNumbers = Array.from(scannedSerialNumbers);
             const doId = elements.deliveryOrderSelect.val();
 
@@ -390,25 +360,38 @@
                 return;
             }
 
-            try {
-                const response = await fetch(`/api/deliveryorder/move-to-mastertable/${doId}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ serialNumbers, actualQty: serialNumbers.length }),
-                });
+            Swal.fire({
+                title: "Are you sure?",
+                text: "Do you want to confirm and move all scans to MasterTable?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, Confirm",
+                cancelButtonText: "Cancel"
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const body = serialNumbers;
 
-                const data = await response.json();
-                if (data.error) {
-                    showAlert("Error", data.error, "error");
-                    return;
+                        const response = await fetch(`/api/deliveryorder/move-to-mastertable/${doId}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(body)
+                        });
+
+                        const data = await response.json();
+                        if (response.ok) {
+                            showAlert("Success", "Items moved to MasterTable!", "success");
+                            elements.deliveryOrderSelect.prop('disabled', false);
+                            elements.dataTable.empty();
+                            loadDeliveryOrderDetails(doId);
+                        } else {
+                            showAlert("Error", data.error || "Failed to confirm scans!", "error");
+                        }
+                    } catch (error) {
+                        showAlert("Error", "Failed to confirm scans!", "error");
+                    }
                 }
-
-                showAlert("Success", "Items moved to MasterTable!", "success");
-                resetScanList();
-                loadDeliveryOrderDetails(doId);
-            } catch {
-                showAlert("Error", "Failed to confirm scans!", "error");
-            }
+            });
         }
 
         function resetScanList() {
@@ -459,7 +442,6 @@
         function resetInput() {
             elements.serialNumberInput.val("").focus();
         }
-
     });
 
 </script>
