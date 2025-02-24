@@ -28,6 +28,8 @@ public partial class ScanSystemContext : DbContext
     public DbSet<Shipment> Shipments { get; set; }
 
     public DbSet<TempScanItem> TempScanItems { get; set; }
+
+    public DbSet<SOList> SOLists {get; set;}
 }
 
 //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

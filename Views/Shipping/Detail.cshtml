@@ -1,27 +1,40 @@
-@model ShippingDetailViewModel
-
 @{
-    ViewData["Title"] = "Shipping Details";
+    ViewData["Title"] = "View Shipping";
 }
 
-<h2 class="text-center mt-3">Shipping Details</h2>
+<h2 class="text-center mt-3">Shipping Records</h2>
 
-<div class="container-sm" style="max-width: 600px;">
-    <div class="mb-2">
-        <label class="form-label fw-bold">SO Number:</label>
-        <p class="form-control-static">@Model.SONumber</p>
+<div class="container-sm" style="max-width: 800px;">
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-bordered table-striped table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>SO Number</th>
+                    <th>Destination</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var shipping in ViewBag.ShippingList)
+                {
+                    <tr>
+                        <td>@shipping.SONumber</td>
+                        <td>@shipping.Destination</td>
+                        <td>@shipping.Date.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            <button class="btn btn-info btn-sm view-details" data-id="@shipping.SONumber">View</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
-    <div class="mb-2">
-        <label class="form-label fw-bold">Destination:</label>
-        <p class="form-control-static">@Model.Destination</p>
-    </div>
-    <div class="mb-2">
-        <label class="form-label fw-bold">Date:</label>
-        <p class="form-control-static">@Model.Date.ToString("yyyy-MM-dd")</p>
-    </div>
+</div>
 
-    <h5 class="mt-3">Delivery Order List</h5>
-    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+<div id="shipping-details" class="container-sm mt-4" style="max-width: 800px; display: none;">
+    <h5>Delivery Orders</h5>
+    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
         <table class="table table-bordered table-striped table-sm">
             <thead class="table-dark">
                 <tr>
@@ -30,29 +43,38 @@
                     <th>Quantity</th>
                 </tr>
             </thead>
-            <tbody>
-                @if (Model.DeliveryOrders.Any())
-                {
-                    @foreach (var doItem in Model.DeliveryOrders)
-                    {
-                        <tr>
-                            <td>@doItem.DONumber</td>
-                            <td>@doItem.ModelName</td>
-                            <td>@doItem.Quantity</td>
-                        </tr>
-                    }
-                }
-                else
-                {
-                    <tr>
-                        <td colspan="3" class="text-center">No Delivery Orders</td>
-                    </tr>
-                }
+            <tbody id="do-details-body">
             </tbody>
         </table>
     </div>
-
-    <div class="d-grid gap-2 mt-3">
-        <a href="@Url.Action("Index", "Shipping")" class="btn btn-secondary btn-sm">Back to List</a>
-    </div>
 </div>
+
+<script>
+    document.querySelectorAll(".view-details").forEach(button => {
+        button.addEventListener("click", async function () {
+            let soNumber = this.getAttribute("data-id");
+            
+            try {
+                let response = await fetch(`/Shipping/GetDetails?soNumber=${soNumber}`);
+                let result = await response.json();
+                
+                let doDetailsBody = document.getElementById("do-details-body");
+                doDetailsBody.innerHTML = "";
+                
+                result.DeliveryOrders.forEach(doItem => {
+                    let row = `<tr>
+                        <td>${doItem.Donumber}</td>
+                        <td>${doItem.ModelName}</td>
+                        <td>${doItem.Qty}</td>
+                    </tr>`;
+                    doDetailsBody.innerHTML += row;
+                });
+                
+                document.getElementById("shipping-details").style.display = "block";
+            } catch (error) {
+                console.error("Error fetching details:", error);
+                alert("Failed to load details!");
+            }
+        });
+    });
+</script>
