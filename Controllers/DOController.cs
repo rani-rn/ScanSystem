@@ -193,11 +193,9 @@ public class DOController : ControllerBase
             }
             await _context.SaveChangesAsync();
 
-            // Hapus dari MasterItems
             _context.MasterItems.RemoveRange(masterItems);
             await _context.SaveChangesAsync();
 
-            // Proses Shipment
             var shipment = await _context.Shipments
                 .FirstOrDefaultAsync(s => s.Doid == deliveryOrder.Doid);
             if (shipment == null)

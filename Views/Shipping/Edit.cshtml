@@ -1,30 +1,27 @@
 @{
-    ViewData["Title"] = "Edit Shipping";
+    ViewData["Title"] = "Detail Shipping";
 }
-
-<h2 class="text-center mt-3">Edit Shipping</h2>
+<h2 class="text-center mt-3">Detail Shipping</h2>
 
 <div class="container-sm" style="max-width: 600px;">
-    <form method="post" id="shipping-form">
-        <input type="hidden" id="shippingId" name="shippingId" value="@Model.ShippingId" />
-
+    <form id="shipping-form">
         <div class="mb-2">
             <label for="soNumber" class="form-label">SO Number</label>
-            <input type="text" class="form-control form-control-sm" id="soNumber" name="soNumber" value="@Model.SoNumber" required>
+            <input type="text" class="form-control form-control-sm" id="soNumber" name="soNumber"
+                value="@Model.SONumber" required>
         </div>
-        
-        <div class="row">
-            <div class="col-md-6 mb-2">
-                <label for="destination" class="form-label">Destination</label>
-                <input type="text" class="form-control form-control-sm" id="destination" name="destination" value="@Model.Destination" required>
-            </div>
-            <div class="col-md-6 mb-2">
-                <label for="date" class="form-label">Date</label>
-                <input type="date" class="form-control form-control-sm" id="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" required>
-            </div>
+        <div class="mb-2">
+            <label for="destination" class="form-label">Destination</label>
+            <input type="text" class="form-control form-control-sm" id="destination" name="destination"
+                value="@Model.Destination" required>
+        </div>
+        <div class="mb-2">
+            <label for="date" class="form-label">Date</label>
+            <input type="date" class="form-control form-control-sm" id="date" name="date"
+                value="@Model.Date.ToString("yyyy-MM-dd")" required>
         </div>
 
-        <fieldset id="do-form">
+        <fieldset id="do-form" disabled>
             <h5 class="mt-3">Delivery Order Details</h5>
             <div class="row">
                 <div class="col-md-4 mb-2">
@@ -33,8 +30,15 @@
                 </div>
                 <div class="col-md-4 mb-2">
                     <label for="model" class="form-label">Model</label>
-                    <input type="text" class="form-control form-control-sm" id="model">
+                    <select id="model" class="form-control form-control-sm" name="ModelId" required>
+                        <option value="">Select Model</option>
+                        @foreach (var item in ViewBag.ListModel)
+                        {
+                            <option value="@item.ModelId">@item.ModelName</option>
+                        }
+                    </select>
                 </div>
+
                 <div class="col-md-4 mb-2">
                     <label for="qty" class="form-label">Quantity</label>
                     <input type="number" class="form-control form-control-sm" id="qty">
@@ -46,100 +50,172 @@
 
     <h5 class="mt-3">DO Records</h5>
     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-        <table class="table table-bordered table-striped table-sm">
+        <table class="table table-bordered" id="doTable">
             <thead class="table-dark">
                 <tr>
-                    <th>Select</th>
+                    <th>Action</th>
                     <th>DO Number</th>
                     <th>Model</th>
                     <th>Quantity</th>
                 </tr>
             </thead>
             <tbody id="do-table-body">
-                @if (Model.DeliveryOrders.Count > 0)
-                {
-                    foreach (var item in Model.DeliveryOrders)
-                    {
-                        <tr>
-                            <td class="text-center"><input type="checkbox" class="delete-checkbox"></td>
-                            <td>@item.DONumber</td>
-                            <td>@item.Model</td>
-                            <td>@item.Qty</td>
-                        </tr>
-                    }
-                }
-                else
-                {
-                    <tr>
-                        <td colspan="4" class="text-center">No Data</td>
-                    </tr>
-                }
             </tbody>
         </table>
     </div>
+</div>
 
-    <div class="d-grid gap-2 mt-3">
-        <button type="button" class="btn btn-danger btn-sm" id="reset-list">Reset</button>
-        <button type="button" class="btn btn-success btn-sm" id="update">Update</button>
-        <button type="button" class="btn btn-secondary btn-sm" id="cancel">Cancel</button>
-    </div>
+<div class="container-sm d-grid gap-2 mt-3" style="max-width: 600px;">
+    <button type="button" class="btn btn-warning btn-sm" id="update">Edit</button>
+    <button type="button" class="btn btn-secondary btn-sm" id="cancel">Cancel</button>
 </div>
 
 <script>
-    document.getElementById("add-do").addEventListener("click", function() {
-        let doNumber = document.getElementById("doNumber").value;
-        let model = document.getElementById("model").value;
-        let qty = document.getElementById("qty").value;
+    document.addEventListener("DOMContentLoaded", async function () {
+        let soNumberInput = document.getElementById("soNumber");
+        let doForm = document.getElementById("do-form");
 
-        if (!doNumber || !model || !qty) {
-            alert("Please fill all DO fields!");
-            return;
+        if (soNumberInput.value.trim()) {
+            await fetchShippingData(soNumberInput.value.trim());
         }
 
-        let tableBody = document.getElementById("do-table-body");
-
-        if (tableBody.children.length === 1 && tableBody.children[0].textContent === "No Data") {
-            tableBody.innerHTML = "";
-        }
-
-        let newRow = document.createElement("tr");
-        newRow.innerHTML = `
-            <td class="text-center"><input type="checkbox" class="delete-checkbox"></td>
-            <td>${doNumber}</td>
-            <td>${model}</td>
-            <td>${qty}</td>
-        `;
-
-        newRow.addEventListener("click", function (e) {
-            if (e.target.tagName !== "INPUT") {
-                document.getElementById("doNumber").value = newRow.cells[1].textContent;
-                document.getElementById("model").value = newRow.cells[2].textContent;
-                document.getElementById("qty").value = newRow.cells[3].textContent;
+        soNumberInput.addEventListener("change", async function () {
+            let soNumber = this.value.trim();
+            if (soNumber) {
+                await fetchShippingData(soNumber);
             }
         });
 
-        tableBody.appendChild(newRow);
+        async function fetchShippingData(soNumber) {
+            try {
+                let soIdResponse = await fetch(`/Shipping/GetSOId?soNumber=${soNumber}`);
+                let soIdData = await soIdResponse.json();
 
-        document.getElementById("doNumber").value = "";
-        document.getElementById("model").value = "";
-        document.getElementById("qty").value = "";
-    });
+                if (!soIdData.success) {
+                    console.error("SO not found:", soIdData.message);
+                    return;
+                }
 
-    document.getElementById("reset-list").addEventListener("click", function() {
-        let checkboxes = document.querySelectorAll(".delete-checkbox:checked");
-        checkboxes.forEach(checkbox => checkbox.closest("tr").remove());
+                let soId = soIdData.soId;
+                let response = await fetch(`/Shipping/GetShippingData/${soId}`);
+                let data = await response.json();
 
-        let tableBody = document.getElementById("do-table-body");
-        if (tableBody.children.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="4" class="text-center">No Data</td></tr>`;
+                console.log("Shipping Data:", data);
+
+                if (data.success) {
+                    fillDOData(data.data);
+                    doForm.removeAttribute("disabled"); // Aktifkan form DO setelah data ditemukan
+                }
+            } catch (error) {
+                console.error("Error fetching shipping data:", error);
+            }
         }
-    });
 
-    document.getElementById("update").addEventListener("click", function() {
-        alert("Data updated successfully!");
-    });
+        function fillDOData(data) {
+            let tableBody = document.getElementById("do-table-body");
+            tableBody.innerHTML = ""; // Hapus data sebelumnya
 
-    document.getElementById("cancel").addEventListener("click", function() {
-        window.location.href = "/Shipping/Index";
+            console.log("Filling DO Data:", data);
+
+            data.forEach(order => {
+                let newRow = document.createElement("tr");
+                newRow.innerHTML = `
+                    <td class="text-center">
+                        <button type="button" class="btn btn-danger btn-sm delete-row">Delete</button>
+                    </td>
+                    <td>${order.donumber}</td> 
+                    <td data-model-id="${order.modelId}">${order.modelName}</td>
+                    <td>${order.qty}</td>
+                `;
+                tableBody.appendChild(newRow);
+            });
+        }
+
+        document.getElementById("add-do").addEventListener("click", function () {
+            let doNumber = document.getElementById("doNumber").value.trim();
+            let modelId = document.getElementById("model").value;
+            let modelName = document.getElementById("model").selectedOptions[0].text;
+            let qty = document.getElementById("qty").value.trim();
+
+            if (!doNumber || !modelId || !qty) {
+                alert("Please fill all fields before adding.");
+                return;
+            }
+            if (qty <= 0) {
+                alert("Quantity must be greater than zero.");
+                return;
+            }
+
+            let tableBody = document.getElementById("do-table-body");
+            let newRow = document.createElement("tr");
+            newRow.innerHTML = `
+                <td class="text-center">
+                    <button type="button" class="btn btn-danger btn-sm delete-row">Delete</button>
+                </td>
+                <td>${doNumber}</td>
+                <td data-model-id="${modelId}">${modelName}</td>
+                <td>${qty}</td>
+            `;
+
+            tableBody.appendChild(newRow);
+
+            document.getElementById("doNumber").value = "";
+            document.getElementById("qty").value = "";
+        });
+
+        document.addEventListener("click", function (event) {
+            if (event.target.classList.contains("delete-row")) {
+                event.target.closest("tr").remove();
+            }
+        });
+
+        document.getElementById("update").addEventListener("click", async function () {
+            let soNumber = document.getElementById("soNumber").value.trim();
+            let doNumbers = Array.from(document.querySelectorAll("#do-table-body tr td:nth-child(2)")).map(td => td.innerText);
+
+            let checkSOResponse = await fetch(`/Shipping/CheckSONumber?soNumber=${soNumber}`);
+            let soData = await checkSOResponse.json();
+            if (soData.exists) {
+                alert("SONumber already exists. Please use a different SONumber.");
+                return;
+            }
+
+            for (let doNumber of doNumbers) {
+                let checkDOResponse = await fetch(`/Shipping/CheckDONumber?doNumber=${doNumber}`);
+                let doData = await checkDOResponse.json();
+                if (doData.exists) {
+                    alert(`DONumber ${doNumber} already exists. Please use a different DONumber.`);
+                    return;
+                }
+            }
+
+            try {
+                let response = await fetch(`/Shipping/UpdatePost/${id}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        SONumber: soNumber,
+                        Destination: document.getElementById("destination").value.trim(),
+                        Date: document.getElementById("date").value,
+                        DeliveryOrders: doNumbers.map(doNumber => ({
+                            Donumber: doNumber,
+                            ModelId: document.querySelector(`[data-model-id][data-do-number="${doNumber}"]`).dataset.modelId,
+                            Qty: document.querySelector(`[data-qty][data-do-number="${doNumber}"]`).innerText
+                        }))
+                    })
+                });
+                let result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    window.location.href = "/Shipping";
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error("Update failed:", error);
+            }
+        });
     });
 </script>

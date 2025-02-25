@@ -22,8 +22,6 @@ namespace ScanBarcode.Models
         public int ModelId { get; set; }
 
         public int? ActualQty { get; set; }
-
-        [Required]
         public int Qty { get; set; }
 
         public string? Destination { get; set; }

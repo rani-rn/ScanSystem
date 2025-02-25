@@ -62,17 +62,34 @@
             </tbody>
         </table>
     </div>
+</div>
 
-    <div class="d-grid gap-2 mt-3">
-        <button type="button" class="btn btn-success btn-sm" id="save">Save</button>
-        <button type="button" class="btn btn-secondary btn-sm" id="cancel">Cancel</button>
-    </div>
+<div class="container-sm d-grid gap-2 mt-3" style="max-width: 600px;">
+    <button type="button" class="btn btn-success btn-sm" id="save">Save</button>
+    <button type="button" class="btn btn-secondary btn-sm" id="cancel">Cancel</button>
 </div>
 
 <script>
     document.getElementById("soNumber").addEventListener("input", function () {
         let doForm = document.getElementById("do-form");
-        doForm.disabled = this.value.trim() === "";
+        doForm.disabled = this.value.trim() === "" ? true : false;
+    });
+
+    document.getElementById("soNumber").addEventListener("blur", async function () {
+        let soNumber = this.value.trim();
+        if (soNumber) {
+            try {
+                let response = await fetch(`/Shipping/CheckSONumber?soNumber=${soNumber}`);
+                let result = await response.json();
+                if (result.exists) {
+                    alert("SONumber already exists");
+                    this.value = "";
+                    document.getElementById("do-form").disabled = true;
+                }
+            } catch (error) {
+                console.error("Error checking SONumber", error);
+            }
+        }
     });
 
     function updateButtonState() {
@@ -167,7 +184,7 @@
             DeliveryOrders: doList
         };
 
-        console.log("Sending payload:", payload); 
+        console.log("Sending payload:", payload);
 
         try {
             let response = await fetch('/Shipping/CreatePost', {
@@ -179,7 +196,7 @@
             });
 
             let result = await response.json();
-            console.log(" Response received:", result); 
+            console.log(" Response received:", result);
 
             if (response.ok) {
                 alert("Data saved successfully!");

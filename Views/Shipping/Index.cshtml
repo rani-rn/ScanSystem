@@ -1,3 +1,5 @@
+@model IEnumerable<dynamic>
+
 @{
     ViewData["Title"] = "Shipping";
 }
@@ -7,7 +9,8 @@
         <h1 class="h4 mb-0">Shipping</h1>
         <a href="/Shipping/Create" class="btn btn-primary d-flex align-items-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus me-1">
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="feather feather-plus me-1">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
@@ -19,33 +22,35 @@
         <table class="table table-hover table-striped mb-0 table-responsive rounded-3 overflow-hidden">
             <thead class="table-light rounded-top-3">
                 <tr class="text-center">
-                    <th>Booking Confirmation</th>
-                    <th>Actual Shipment</th>
-                    <th>Container No</th>
-                    <th>Seal No</th>
+                    <th>SO Number</th>
                     <th>Destination</th>
+                    <th>Date</th>
+                    <th>Total DO</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                <tr class="text-center">
-                    <td>Example Booking</td>
-                    <td>01/01/2025</td>
-                    <td>CX12345678</td>
-                    <td>SN987654</td>
-                    <td>Surabaya</td>
-                    <td class="d-flex flex-wrap justify-content-center gap-2">
-                        <a asp-action="Edit" asp-route-id="1" class="btn btn-sm btn-warning">
-                            Edit
-                        </a>
-                        <a asp-action="Details" asp-route-id="1" class="btn btn-sm btn-info">
-                            Details
-                        </a>
-                        <a asp-action="Delete" asp-route-id="1" class="btn btn-sm btn-danger">
-                            Delete
-                        </a>
-                    </td>
-                </tr>
+                @foreach (var shipping in Model)
+                {
+                    <tr class="text-center">
+                        <td>@shipping.SONumber</td>
+                        <td>@shipping.Destination</td>
+                        <td>@shipping.Date.ToString("yyyy-MM-dd")</td>
+                        <td>@shipping.TotalDO</td>
+                        <td class="d-flex flex-wrap justify-content-center gap-2">
+                            <a asp-controller="Shipping" asp-action="Edit" asp-route-id="@shipping.SOId"
+                                class="btn btn-sm btn-warning">
+                                Detail
+                            </a>
+                            
+                            <a asp-controller="Shipping" asp-action="Delete" asp-route-id="@shipping.SOId"
+                                class="btn btn-sm btn-danger">
+                                Delete
+                            </a>
+
+                        </td>
+                    </tr>
+                }
             </tbody>
         </table>
     </div>
