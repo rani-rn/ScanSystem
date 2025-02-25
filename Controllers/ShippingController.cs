@@ -114,7 +114,7 @@ namespace ScanBarcode.Controllers
             bool exists = _context.DeliveryOrders.Any(deliveryOrder => deliveryOrder.Donumber == doNumber);
             return Json(new { exists });
         }
-        
+
         [HttpGet]
         [Route("Edit/{id}")]
         public IActionResult Edit(int id)
@@ -223,6 +223,31 @@ namespace ScanBarcode.Controllers
             _context.SaveChanges();
             return Ok(new { message = "Data updated successfully!" });
         }
+
+        [HttpGet]
+        [Route("DeleteConfirmed/{id}")]
+        public IActionResult DeleteConfirmed(int id)
+        {
+            var soList = _context.SOLists.FirstOrDefault(s => s.SOId == id);
+
+            if (soList == null)
+            {
+                return NotFound();
+            }
+
+            var deliveryOrders = _context.DeliveryOrders
+                                        .Where(d => d.SONumber == soList.SONumber)
+                                        .ToList();
+            _context.DeliveryOrders.RemoveRange(deliveryOrders);
+
+            _context.SOLists.Remove(soList);
+
+            _context.SaveChanges();
+
+            TempData["SuccessMessage"] = "Shipping record and associated Delivery Orders deleted successfully.";
+            return RedirectToAction("Index");
+        }
+
 
 
     }
